@@ -6,8 +6,7 @@ import { FaPlus, FaEdit, FaTrash, FaStar, FaSearch, FaTimes } from "react-icons/
 import { FaHotel } from "react-icons/fa";
 import { formatPrice } from "../../utils/formatPrice";
 import { ROOM_TYPES, ROOM_AMENITIES } from "../../utils/constants";
-import axios from "../../utils/axiosInstance"; 
-// nếu bạn chưa có axiosInstance thì đổi thành axios + baseURL đúng backend
+import axios from "../../utils/axiosInstance";
 
 const ManagerRooms = () => {
   const queryClient = useQueryClient();
@@ -26,6 +25,8 @@ const ManagerRooms = () => {
     discount: 0,
     roomType: "single",
     maxGuests: 2,
+    maxAdults: 2,       // 👈 thêm field
+    maxChildren: 0,     // 👈 thêm field
     images: [],
     amenities: [],
     size: "",
@@ -40,8 +41,6 @@ const ManagerRooms = () => {
       const res = await axios.get("/manager/rooms", {
         params: { page, limit, search, roomType },
       });
-      // manager.rooms.controller trả về {success, count, data}
-      // hoặc manager.controller trả về có pages,total... tùy file bạn đang mount
       return res.data;
     },
     createRoom: async (data) => {
@@ -71,9 +70,6 @@ const ManagerRooms = () => {
     keepPreviousData: true,
   });
 
-  // Backend bạn đang có 2 kiểu response:
-  // A) manager.rooms.controller: {success, count, data}
-  // B) manager.controller (getRooms): {success, count,total,pages,data}
   const rooms = roomsData?.data || [];
   const total = roomsData?.total ?? roomsData?.count ?? rooms.length ?? 0;
   const pages = roomsData?.pages ?? 1;
@@ -124,6 +120,8 @@ const ManagerRooms = () => {
       discount: 0,
       roomType: "single",
       maxGuests: 2,
+      maxAdults: 2,
+      maxChildren: 0,
       images: [],
       amenities: [],
       size: "",
@@ -136,13 +134,28 @@ const ManagerRooms = () => {
 
   const openEditModal = (room) => {
     setEditingRoom(room);
+
+    const maxGuests = room.maxGuests || 2;
+    const rawMaxAdults = room.maxAdults != null ? room.maxAdults : maxGuests;
+    const safeMaxAdults = Math.min(rawMaxAdults, maxGuests);
+    const rawMaxChildren =
+      room.maxChildren != null
+        ? room.maxChildren
+        : Math.max(0, maxGuests - safeMaxAdults);
+    const safeMaxChildren = Math.max(
+      0,
+      Math.min(rawMaxChildren, maxGuests - safeMaxAdults)
+    );
+
     setFormData({
       name: room.name || "",
       description: room.description || "",
       price: room.price || "",
       discount: room.discount || 0,
       roomType: room.roomType || "single",
-      maxGuests: room.maxGuests || 2,
+      maxGuests,
+      maxAdults: safeMaxAdults,
+      maxChildren: safeMaxChildren,
       images: room.images || [],
       amenities: room.amenities || [],
       size: room.size || "",
@@ -166,6 +179,8 @@ const ManagerRooms = () => {
       price: Number(formData.price),
       discount: Number(formData.discount),
       maxGuests: Number(formData.maxGuests),
+      maxAdults: Number(formData.maxAdults),
+      maxChildren: Number(formData.maxChildren),
       numberOfBeds: Number(formData.numberOfBeds),
       size: Number(formData.size),
     };
@@ -294,12 +309,24 @@ const ManagerRooms = () => {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phòng</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Loại</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Giá</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Đánh giá</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Thao tác</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Phòng
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Loại
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Giá
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Đánh giá
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Trạng thái
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  Thao tác
+                </th>
               </tr>
             </thead>
 
@@ -309,7 +336,9 @@ const ManagerRooms = () => {
                   <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center">
                       <FaHotel className="text-6xl text-gray-300 mb-4" />
-                      <h3 className="text-xl font-semibold text-gray-700 mb-2">Chưa có phòng nào</h3>
+                      <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                        Chưa có phòng nào
+                      </h3>
                       <p className="text-gray-500 mb-6">
                         {searchTerm || filterType
                           ? "Không tìm thấy phòng phù hợp."
@@ -338,7 +367,25 @@ const ManagerRooms = () => {
                         <div>
                           <div className="font-semibold">{room.name}</div>
                           <div className="text-sm text-gray-500">
-                            {room.maxGuests} khách • {room.size}m²
+                            {/* Hiển thị rõ người lớn / trẻ em / tổng khách / diện tích */}
+                            {room.maxAdults != null && (
+                              <span>{room.maxAdults} người lớn</span>
+                            )}
+                            {room.maxChildren != null && (
+                              <span>
+                                {" "}
+                                • {room.maxChildren} trẻ em
+                              </span>
+                            )}
+                            {room.maxGuests != null && (
+                              <span>
+                                {" "}
+                                • Tối đa {room.maxGuests} khách
+                              </span>
+                            )}
+                            {room.size != null && room.size !== "" && (
+                              <span> • {room.size}m²</span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -358,7 +405,9 @@ const ManagerRooms = () => {
                     <td className="px-6 py-4">
                       <div className="flex items-center">
                         <FaStar className="text-yellow-500 mr-1" />
-                        <span className="font-semibold">{room.rating?.toFixed(1) || "N/A"}</span>
+                        <span className="font-semibold">
+                          {room.rating?.toFixed(1) || "N/A"}
+                        </span>
                         <span className="text-xs text-gray-500 ml-1">
                           ({room.totalReviews || 0})
                         </span>
@@ -436,11 +485,15 @@ const ManagerRooms = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* name */}
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-2">Tên phòng *</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Tên phòng *
+                  </label>
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     className="input"
                     required
                   />
@@ -462,7 +515,9 @@ const ManagerRooms = () => {
 
                 {/* roomType */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">Loại phòng *</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Loại phòng *
+                  </label>
                   <select
                     value={formData.roomType}
                     onChange={(e) =>
@@ -481,7 +536,9 @@ const ManagerRooms = () => {
 
                 {/* price */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">Giá (VNĐ) *</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Giá (VNĐ) *
+                  </label>
                   <input
                     type="number"
                     value={formData.price}
@@ -496,7 +553,9 @@ const ManagerRooms = () => {
 
                 {/* discount */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">Giảm giá (%)</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Giảm giá (%)
+                  </label>
                   <input
                     type="number"
                     value={formData.discount}
@@ -520,15 +579,88 @@ const ManagerRooms = () => {
                   <input
                     type="number"
                     value={formData.maxGuests}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        maxGuests: parseInt(e.target.value),
-                      })
-                    }
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 1;
+                      setFormData((prev) => {
+                        const newMaxGuests = Math.max(1, val);
+                        const newMaxAdults = Math.min(
+                          prev.maxAdults || 0,
+                          newMaxGuests
+                        );
+                        const newMaxChildren = Math.max(
+                          0,
+                          Math.min(prev.maxChildren || 0, newMaxGuests - newMaxAdults)
+                        );
+                        return {
+                          ...prev,
+                          maxGuests: newMaxGuests,
+                          maxAdults: newMaxAdults,
+                          maxChildren: newMaxChildren,
+                        };
+                      });
+                    }}
                     className="input"
                     required
                     min="1"
+                  />
+                </div>
+
+                {/* maxAdults */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Người lớn tối đa
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.maxAdults}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      setFormData((prev) => {
+                        const safeAdults = Math.max(
+                          0,
+                          Math.min(val, prev.maxGuests || val)
+                        );
+                        const safeChildren = Math.max(
+                          0,
+                          Math.min(prev.maxChildren || 0, (prev.maxGuests || 0) - safeAdults)
+                        );
+                        return {
+                          ...prev,
+                          maxAdults: safeAdults,
+                          maxChildren: safeChildren,
+                        };
+                      });
+                    }}
+                    className="input"
+                    min="0"
+                  />
+                </div>
+
+                {/* maxChildren */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Trẻ em tối đa
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.maxChildren}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      setFormData((prev) => {
+                        const maxChildAllow =
+                          (prev.maxGuests || 0) - (prev.maxAdults || 0);
+                        const safeVal = Math.max(
+                          0,
+                          Math.min(val, maxChildAllow >= 0 ? maxChildAllow : 0)
+                        );
+                        return {
+                          ...prev,
+                          maxChildren: safeVal,
+                        };
+                      });
+                    }}
+                    className="input"
+                    min="0"
                   />
                 </div>
 
@@ -551,14 +683,16 @@ const ManagerRooms = () => {
 
                 {/* numberOfBeds */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">Số giường *</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Số giường *
+                  </label>
                   <input
                     type="number"
                     value={formData.numberOfBeds}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        numberOfBeds: parseInt(e.target.value),
+                        numberOfBeds: parseInt(e.target.value) || 1,
                       })
                     }
                     className="input"
@@ -569,7 +703,9 @@ const ManagerRooms = () => {
 
                 {/* bedType */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">Loại giường *</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Loại giường *
+                  </label>
                   <select
                     value={formData.bedType}
                     onChange={(e) =>
@@ -696,7 +832,11 @@ const ManagerRooms = () => {
               </div>
 
               <div className="flex justify-end space-x-3 pt-4 border-t">
-                <button type="button" onClick={closeModal} className="btn btn-outline">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="btn btn-outline"
+                >
                   Hủy
                 </button>
                 <button

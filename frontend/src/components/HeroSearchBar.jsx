@@ -49,6 +49,13 @@ const HeroSearchBar = () => {
     longitude: '',
   });
 
+  // Helper: format ngày thành YYYY-MM-DD (để SearchResult + backend dễ xử lý)
+  const formatDateParam = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    return d.toISOString().split('T')[0]; // chỉ lấy phần ngày
+  };
+
   // Lấy vị trí hiện tại (dùng checkbox "Dùng vị trí hiện tại")
   useEffect(() => {
     if (useLocation && navigator.geolocation) {
@@ -136,11 +143,23 @@ const HeroSearchBar = () => {
   const handleSearch = (e) => {
     e.preventDefault();
 
+    // Validate đơn giản
+    if (!searchData.search && !searchData.latitude && !searchData.longitude) {
+      toast.error('Vui lòng nhập điểm đến hoặc chọn vị trí trên bản đồ');
+      return;
+    }
+
+    if (searchData.checkIn && searchData.checkOut && searchData.checkIn > searchData.checkOut) {
+      toast.error('Ngày nhận phòng phải trước ngày trả phòng');
+      return;
+    }
+
     const totalGuests = searchData.adults + searchData.children;
 
+    // Lưu vào store (nếu chỗ khác còn dùng)
     setSearchParams({
-      checkIn: searchData.checkIn,
-      checkOut: searchData.checkOut,
+      checkIn: formatDateParam(searchData.checkIn),
+      checkOut: formatDateParam(searchData.checkOut),
       guests: totalGuests,
       rooms: searchData.rooms,
       adults: searchData.adults,
@@ -149,29 +168,35 @@ const HeroSearchBar = () => {
       roomType: searchData.roomType,
       minPrice: searchData.minPrice,
       maxPrice: searchData.maxPrice,
+      latitude: searchData.latitude,
+      longitude: searchData.longitude,
+      radius: searchData.radius ? searchData.radius * 1000 : '',
     });
 
-    const params = new URLSearchParams({
-      search: searchData.search || '',
-      checkIn: searchData.checkIn?.toISOString(),
-      checkOut: searchData.checkOut?.toISOString(),
-      guests: totalGuests.toString(),
-      rooms: searchData.rooms.toString(),
-      adults: searchData.adults.toString(),
-      children: searchData.children.toString(),
-      roomType: searchData.roomType || '',
-      minPrice: searchData.minPrice || '',
-      maxPrice: searchData.maxPrice || '',
-    });
+    // Build query cho URL (SearchResult.jsx đọc ở đây)
+    const params = new URLSearchParams();
+
+    if (searchData.search) params.set('search', searchData.search);
+    if (searchData.checkIn) params.set('checkIn', formatDateParam(searchData.checkIn));
+    if (searchData.checkOut) params.set('checkOut', formatDateParam(searchData.checkOut));
+
+    params.set('guests', totalGuests.toString());
+    params.set('adults', searchData.adults.toString());
+    params.set('children', searchData.children.toString());
+
+    if (searchData.roomType) params.set('roomType', searchData.roomType);
+    if (searchData.minPrice) params.set('minPrice', searchData.minPrice);
+    if (searchData.maxPrice) params.set('maxPrice', searchData.maxPrice);
 
     const hasLocation = searchData.latitude && searchData.longitude;
-
-    // Gửi lat/lng khi có vị trí (từ GPS hoặc từ bản đồ)
     if (hasLocation) {
-      params.append('latitude', searchData.latitude);
-      params.append('longitude', searchData.longitude);
-      params.append('radius', (searchData.radius * 1000).toString()); // km -> m
+      params.set('latitude', searchData.latitude);
+      params.set('longitude', searchData.longitude);
+      params.set('radius', (searchData.radius * 1000).toString()); // km -> m
     }
+
+    // sort mặc định (SearchResult cũng default -rating nhưng set luôn cho rõ)
+    params.set('sort', '-rating');
 
     navigate(`/search?${params.toString()}`);
   };
@@ -224,7 +249,7 @@ const HeroSearchBar = () => {
                   setSearchData({ ...searchData, search: e.target.value })
                 }
                 placeholder="Nhập thành phố, tên khách sạn hoặc địa điểm..."
-                className="input w-full pl-10 pr-3 h-12 md:h-13 rounded-2xl border border-slate-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-300/60 text-sm md:text-base"
+                className="w-full pl-10 pr-3 py-2 h-12 md:h-13 rounded-2xl border border-slate-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-300/60 text-sm md:text-base"
               />
             </div>
 
@@ -271,13 +296,15 @@ const HeroSearchBar = () => {
               </label>
               <DatePicker
                 selected={searchData.checkIn}
-                onChange={(date) => setSearchData({ ...searchData, checkIn: date })}
+                onChange={(date) =>
+                  setSearchData({ ...searchData, checkIn: date })
+                }
                 selectsStart
                 startDate={searchData.checkIn}
                 endDate={searchData.checkOut}
                 minDate={getToday()}
                 dateFormat="dd/MM/yyyy"
-                className="input w-full h-11 md:h-12 rounded-2xl border border-slate-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-300/60 text-sm"
+                className="w-full h-11 md:h-12 rounded-2xl border border-slate-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-300/60 text-sm"
               />
             </div>
 
@@ -291,13 +318,15 @@ const HeroSearchBar = () => {
               </label>
               <DatePicker
                 selected={searchData.checkOut}
-                onChange={(date) => setSearchData({ ...searchData, checkOut: date })}
+                onChange={(date) =>
+                  setSearchData({ ...searchData, checkOut: date })
+                }
                 selectsEnd
                 startDate={searchData.checkIn}
                 endDate={searchData.checkOut}
                 minDate={searchData.checkIn}
                 dateFormat="dd/MM/yyyy"
-                className="input w-full h-11 md:h-12 rounded-2xl border border-slate-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-300/60 text-sm"
+                className="w-full h-11 md:h-12 rounded-2xl border border-slate-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-300/60 text-sm"
               />
             </div>
 
@@ -420,7 +449,7 @@ const HeroSearchBar = () => {
                   onChange={(e) =>
                     setSearchData({ ...searchData, roomType: e.target.value })
                   }
-                  className="input w-full h-11 md:h-12 rounded-2xl border border-slate-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-300/60 text-sm"
+                  className="w-full h-11 md:h-12 rounded-2xl border border-slate-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-300/60 text-sm"
                 >
                   <option value="">Tất cả loại phòng</option>
                   {ROOM_TYPES.map((t) => (
@@ -441,7 +470,7 @@ const HeroSearchBar = () => {
                   onChange={(e) =>
                     setSearchData({ ...searchData, minPrice: e.target.value })
                   }
-                  className="input w-full h-11 md:h-12 rounded-2xl border border-slate-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-300/60 text-sm"
+                  className="w-full h-11 md:h-12 rounded-2xl border border-slate-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-300/60 text-sm"
                   placeholder="0"
                 />
               </div>
@@ -458,7 +487,7 @@ const HeroSearchBar = () => {
                   onChange={(e) =>
                     setSearchData({ ...searchData, maxPrice: e.target.value })
                   }
-                  className="input w-full h-11 md:h-12 rounded-2xl border border-slate-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-300/60 text-sm"
+                  className="w-full h-11 md:h-12 rounded-2xl border border-slate-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-300/60 text-sm"
                   placeholder="Không giới hạn"
                 />
               </div>
@@ -485,11 +514,14 @@ const HeroSearchBar = () => {
                       type="number"
                       value={searchData.radius}
                       onChange={(e) =>
-                        setSearchData({ ...searchData, radius: Number(e.target.value) })
+                        setSearchData({
+                          ...searchData,
+                          radius: Number(e.target.value),
+                        })
                       }
                       min="1"
                       max="100"
-                      className="input w-full h-11 md:h-12 rounded-2xl border border-slate-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-300/60 text-sm mt-2"
+                      className="w-full h-11 md:h-12 rounded-2xl border border-slate-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-300/60 text-sm mt-2"
                       placeholder="Bán kính (km)"
                     />
                     {userLocation && (

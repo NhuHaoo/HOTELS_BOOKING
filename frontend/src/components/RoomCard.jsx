@@ -1,5 +1,17 @@
 import { Link } from 'react-router-dom';
-import { FaStar, FaMapMarkerAlt, FaHeart, FaRegHeart, FaUsers, FaExpand, FaFire, FaUser, FaChild, FaBed, FaCheckCircle } from 'react-icons/fa';
+import {
+  FaStar,
+  FaMapMarkerAlt,
+  FaHeart,
+  FaRegHeart,
+  FaUsers,
+  FaExpand,
+  FaFire,
+  FaUser,
+  FaChild,
+  FaBed,
+  FaCheckCircle
+} from 'react-icons/fa';
 import { formatPrice } from '../utils/formatPrice';
 import { useState, useEffect } from 'react';
 import { favoriteAPI } from '../api/favorite.api';
@@ -25,11 +37,29 @@ const RoomCard = ({ room, onFavoriteChange, initialFavorited = false, showBadge 
   const [isLoading, setIsLoading] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
 
+  // ✅ Tính sức chứa hiển thị: tối đa X người lớn, Y trẻ em
+  const maxAdults =
+    typeof room.maxAdults === 'number'
+      ? room.maxAdults
+      : typeof room.maxGuests === 'number'
+      ? room.maxGuests
+      : 2;
+
+  const maxChildren =
+    typeof room.maxChildren === 'number'
+      ? room.maxChildren
+      : 0;
+
+  const totalGuests =
+    typeof room.maxGuests === 'number'
+      ? room.maxGuests
+      : maxAdults + maxChildren;
+
   // Check if room is favorited on mount
   useEffect(() => {
     const checkFavorite = async () => {
       if (!isAuthenticated || !room?._id) return;
-      
+
       try {
         const response = await favoriteAPI.checkFavorite(room._id);
         setIsFavorited(response.isFavorited || false);
@@ -44,7 +74,7 @@ const RoomCard = ({ room, onFavoriteChange, initialFavorited = false, showBadge 
   const handleFavoriteClick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (!isAuthenticated) {
       toast.error('Vui lòng đăng nhập để sử dụng tính năng này');
       return;
@@ -87,7 +117,7 @@ const RoomCard = ({ room, onFavoriteChange, initialFavorited = false, showBadge 
           }`}
           onLoad={() => setImageLoaded(true)}
         />
-        
+
         {/* Loading skeleton */}
         {!imageLoaded && (
           <div className="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse"></div>
@@ -95,8 +125,8 @@ const RoomCard = ({ room, onFavoriteChange, initialFavorited = false, showBadge 
 
         {/* Image Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-        
-        {/* Favorite Button - Enhanced */}
+
+        {/* Favorite Button */}
         <button
           onClick={handleFavoriteClick}
           disabled={isLoading}
@@ -177,26 +207,26 @@ const RoomCard = ({ room, onFavoriteChange, initialFavorited = false, showBadge 
           </div>
         )}
 
-        {/* Room Info */}
+        {/* ⭐ Room Info: Tối đa X người lớn, Y trẻ em + diện tích */}
         <div className="flex items-center gap-4 text-xs text-gray-600 mb-4 flex-wrap">
-          {room.maxAdults && (
-            <div className="flex items-center gap-1">
-              <FaUser className="text-gray-400" />
-              <span>{room.maxAdults} người lớn</span>
-            </div>
-          )}
-          {room.maxChildren !== undefined && room.maxChildren > 0 && (
-            <div className="flex items-center gap-1">
-              <FaChild className="text-gray-400" />
-              <span>{room.maxChildren} trẻ em</span>
-            </div>
-          )}
-          {!room.maxAdults && room.maxGuests && (
+          {(maxAdults || maxChildren) && (
             <div className="flex items-center gap-1">
               <FaUsers className="text-gray-400" />
-              <span>{room.maxGuests} khách</span>
+              <span>
+                Tối đa {maxAdults} người lớn
+                {maxChildren > 0 && `, ${maxChildren} trẻ em`}
+              </span>
             </div>
           )}
+
+          {/* Nếu muốn nhấn mạnh tổng khách luôn */}
+          {totalGuests && (
+            <div className="flex items-center gap-1">
+              <FaUser className="text-gray-400" />
+              <span>Tổng {totalGuests} khách</span>
+            </div>
+          )}
+
           {room.size && (
             <div className="flex items-center gap-1">
               <FaExpand className="text-gray-400" />
@@ -208,15 +238,17 @@ const RoomCard = ({ room, onFavoriteChange, initialFavorited = false, showBadge 
         {/* Available Rooms Count */}
         {room.availableRoomsCount !== undefined && (
           <div className="mb-3">
-            <div className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-medium ${
-              room.availableRoomsCount > 0 
-                ? 'bg-green-100 text-green-700' 
-                : 'bg-red-100 text-red-700'
-            }`}>
+            <div
+              className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-medium ${
+                room.availableRoomsCount > 0
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-red-100 text-red-700'
+              }`}
+            >
               <FaCheckCircle className="text-xs" />
               <span>
-                {room.availableRoomsCount > 0 
-                  ? `Còn ${room.availableRoomsCount} phòng` 
+                {room.availableRoomsCount > 0
+                  ? `Còn ${room.availableRoomsCount} phòng`
                   : 'Hết phòng'}
               </span>
             </div>

@@ -20,12 +20,8 @@ const roomSchema = new mongoose.Schema({
     required: [true, 'Price is required'],
     min: 0
   },
-  images: [{
-    type: String
-  }],
-  amenities: [{
-    type: String
-  }],
+  images: [{ type: String }],
+  amenities: [{ type: String }],
   rating: {
     type: Number,
     default: 0,
@@ -36,15 +32,13 @@ const roomSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
-  maxGuests: {
-    type: Number,
-    required: [true, 'Max guests is required'],
-    min: 1
-  },
+
+  // 🌟 SỨC CHỨA
   maxAdults: {
     type: Number,
     required: false,
-    min: 1
+    min: 1,
+    default: 2
   },
   maxChildren: {
     type: Number,
@@ -52,8 +46,12 @@ const roomSchema = new mongoose.Schema({
     min: 0,
     default: 0
   },
+  // tổng sức chứa = NL + TE (dùng để filter fallback)
+  maxGuests: {
+    type: Number,
+    min: 1
+  },
 
-  // ---- ROOM TYPE (đã thêm 'standard' + tự chuyển về chữ thường) ----
   roomType: {
     type: String,
     enum: ['single', 'double', 'suite', 'deluxe', 'family', 'presidential', 'standard'],
@@ -65,7 +63,6 @@ const roomSchema = new mongoose.Schema({
     type: Number
   },
 
-  // ---- BED TYPE (đã có setter) ----
   bedType: {
     type: String,
     enum: ['single', 'double', 'queen', 'king'],
@@ -78,7 +75,6 @@ const roomSchema = new mongoose.Schema({
     default: 1
   },
 
-  // ---- VIEW (thêm setter để không lỗi khi frontend gửi 'City' hoặc 'POOL') ----
   view: {
     type: String,
     enum: ['city', 'ocean', 'mountain', 'garden', 'pool'],
@@ -125,6 +121,16 @@ roomSchema.index({ price: 1 });
 // Virtual price after discount
 roomSchema.virtual('finalPrice').get(function() {
   return this.price * (1 - this.discount / 100);
+});
+
+// 🔁 Tự tính maxGuests mỗi lần save
+roomSchema.pre('save', function (next) {
+  const adults = this.maxAdults || 0;
+  const children = this.maxChildren || 0;
+  if (adults + children > 0) {
+    this.maxGuests = adults + children;
+  }
+  next();
 });
 
 module.exports = mongoose.model('Room', roomSchema);

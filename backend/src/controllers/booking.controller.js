@@ -2,6 +2,16 @@ const Booking = require('../models/Booking');
 const Room = require('../models/Room');
 const { sendBookingConfirmation, sendBookingCancellation } = require('../utils/email.utils');
 
+// ===== Helper: tính số ngày chênh lệch (làm tròn lên) =====
+function getDaysDiff(from, to) {
+  const start = new Date(from);
+  const end = new Date(to);
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  const diffMs = end.getTime() - start.getTime();
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+}
+
 // @desc    Create booking
 // @route   POST /api/bookings
 // @access  Private
@@ -85,8 +95,11 @@ exports.createBooking = async (req, res) => {
     }
 
     // Calculate total price
-    const numberOfNights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
-    const totalPrice = room.finalPrice * numberOfNights;
+    const numberOfNights = Math.ceil(
+      (checkOutDate - checkInDate) / (1000 * 60 * 60 * 24)
+    );
+    const nightlyPrice = room.finalPrice || room.price;
+    const totalPrice = nightlyPrice * numberOfNights;
 
     // Get cancellation and reschedule policies from hotel
     const cancellationPolicy = room.hotelId?.cancellationPolicy || {
@@ -116,15 +129,13 @@ exports.createBooking = async (req, res) => {
       totalPrice,
       paymentMethod: paymentMethod || 'vnpay',
       paymentStatus: 'pending',
+      bookingStatus: 'pending', // 👈 cho khớp FE
       cancellationPolicy,
       reschedulePolicy
     });
 
     // Populate booking details
     await booking.populate('roomId hotelId userId');
-
-    // Send confirmation email (optional, can be sent after payment)
-    // await sendBookingConfirmation(booking, req.user);
 
     res.status(201).json({
       success: true,
@@ -274,12 +285,12 @@ exports.cancelBooking = async (req, res) => {
     }
 
     // Check cancellation policy
-    const checkInDate = new Date(booking.checkIn);
     const now = new Date();
-    const daysDiff = (checkInDate - now) / (1000 * 60 * 60 * 24);
-    
-    const freeCancellationDays = booking.cancellationPolicy?.freeCancellationDays || 1;
-    
+    const daysDiff = getDaysDiff(now, booking.checkIn);
+
+    const freeCancellationDays =
+      booking.cancellationPolicy?.freeCancellationDays || 1;
+
     if (daysDiff < freeCancellationDays) {
       return res.status(400).json({
         success: false,
@@ -387,3 +398,147 @@ exports.getBookingByCode = async (req, res) => {
   }
 };
 
+// ===================================================================
+// @desc    Reschedule booking (change check-in / check-out)
+// @route   PUT /api/bookings/:id/reschedule
+// @access  Private
+// ===================================================================
+exports.rescheduleBooking = async (req, res) => {
+  try {
+    let { newCheckIn, newCheckOut } = req.body;
+
+    if (!newCheckIn || !newCheckOut) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng chọn ngày nhận / trả phòng mới'
+      });
+    }
+
+    newCheckIn = new Date(newCheckIn);
+    newCheckOut = new Date(newCheckOut);
+
+    const booking = await Booking.findById(req.params.id);
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    // Quyền: chủ booking hoặc admin
+    if (booking.userId.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to reschedule this booking'
+      });
+    }
+
+    if (booking.bookingStatus === 'cancelled') {
+      return res.status(400).json({
+        success: false,
+        message: 'Booking has been cancelled, cannot reschedule'
+      });
+    }
+
+    if (booking.bookingStatus === 'checked-out') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot reschedule completed booking'
+      });
+    }
+
+    // Validate ngày mới
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (newCheckIn < today) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ngày nhận phòng mới phải từ hôm nay trở đi'
+      });
+    }
+
+    if (newCheckOut <= newCheckIn) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ngày trả phòng phải sau ngày nhận phòng'
+      });
+    }
+
+    // Chính sách đổi lịch trên booking (lấy từ khách sạn lúc tạo)
+    const reschedulePolicy = booking.reschedulePolicy || {
+      freeRescheduleDays: 3,
+      rescheduleFee: 0,
+      allowed: true
+    };
+
+    if (!reschedulePolicy.allowed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Khách sạn không cho phép đổi lịch đặt phòng'
+      });
+    }
+
+    // Kiểm tra xem còn bao nhiêu ngày nữa đến ngày check-in cũ
+    const daysBeforeOldCheckIn = getDaysDiff(today, booking.checkIn);
+    const isFreeReschedule =
+      daysBeforeOldCheckIn >= (reschedulePolicy.freeRescheduleDays || 3);
+
+    // Kiểm tra trùng booking khác của cùng phòng ở ngày mới
+    const overlapping = await Booking.findOne({
+      _id: { $ne: booking._id },
+      roomId: booking.roomId,
+      checkIn: { $lt: newCheckOut },
+      checkOut: { $gt: newCheckIn },
+      paymentStatus: { $in: ['paid', 'pending'] },
+      bookingStatus: { $nin: ['cancelled'] }
+    });
+
+    if (overlapping) {
+      return res.status(400).json({
+        success: false,
+        message: 'Khoảng thời gian mới đã có booking khác, vui lòng chọn ngày khác'
+      });
+    }
+
+    // Tính lại tổng tiền theo số đêm mới (dùng giá hiện tại của phòng)
+    const room = await Room.findById(booking.roomId);
+    const nightlyPrice = room ? (room.finalPrice || room.price) : booking.totalPrice;
+    const nights = getDaysDiff(newCheckIn, newCheckOut);
+    const newTotalPrice = nightlyPrice * nights;
+
+    const oldCheckIn = booking.checkIn;
+    const oldCheckOut = booking.checkOut;
+
+    booking.checkIn = newCheckIn;
+    booking.checkOut = newCheckOut;
+    booking.totalPrice = newTotalPrice;
+    booking.rescheduledAt = new Date();
+    booking.rescheduleInfo = {
+      oldCheckIn,
+      oldCheckOut,
+      newCheckIn,
+      newCheckOut,
+      isFreeReschedule,
+      freeRescheduleDays: reschedulePolicy.freeRescheduleDays || 3,
+      rescheduleFee: reschedulePolicy.rescheduleFee || 0
+    };
+
+    await booking.save();
+
+    return res.status(200).json({
+      success: true,
+      message: isFreeReschedule
+        ? 'Đổi lịch thành công (miễn phí).'
+        : 'Đổi lịch thành công, có thể phát sinh phí theo chính sách khách sạn.',
+      data: booking
+    });
+  } catch (error) {
+    console.error('Reschedule booking error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};

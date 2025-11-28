@@ -1,3 +1,4 @@
+// frontend/src/pages/admin/Rooms.jsx
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { roomAPI } from '../../api/room.api';
@@ -16,13 +17,14 @@ const Rooms = () => {
   const [page, setPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
+
+  // ❗ FORM DATA: thêm maxAdults, maxChildren – KHÔNG cần maxGuests
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     price: '',
     discount: 0,
     roomType: 'standard',
-    maxGuests: 2,
     hotelId: '',
     images: [],
     amenities: [],
@@ -30,17 +32,20 @@ const Rooms = () => {
     numberOfBeds: 1,
     bedType: 'Single',
     availability: true,
+    maxAdults: 2,
+    maxChildren: 0,
   });
 
   // Fetch rooms
   const { data: roomsData, isLoading, isError, error } = useQuery({
     queryKey: ['admin-rooms', page, searchTerm, filterType],
-    queryFn: () => roomAPI.getRooms({
-      page,
-      limit: 10,
-      search: searchTerm,
-      roomType: filterType,
-    }),
+    queryFn: () =>
+      roomAPI.getRooms({
+        page,
+        limit: 10,
+        search: searchTerm,
+        roomType: filterType,
+      }),
   });
 
   // Fetch hotels for dropdown
@@ -95,7 +100,6 @@ const Rooms = () => {
       price: '',
       discount: 0,
       roomType: 'standard',
-      maxGuests: 2,
       hotelId: '',
       images: [],
       amenities: [],
@@ -103,6 +107,8 @@ const Rooms = () => {
       numberOfBeds: 1,
       bedType: 'Single',
       availability: true,
+      maxAdults: 2,
+      maxChildren: 0,
     });
     setShowModal(true);
   };
@@ -115,7 +121,6 @@ const Rooms = () => {
       price: room.price,
       discount: room.discount || 0,
       roomType: room.roomType,
-      maxGuests: room.maxGuests,
       hotelId: room.hotelId?._id || room.hotelId,
       images: room.images || [],
       amenities: room.amenities || [],
@@ -123,6 +128,9 @@ const Rooms = () => {
       numberOfBeds: room.numberOfBeds,
       bedType: room.bedType,
       availability: room.availability,
+      // nếu room cũ chưa có field này thì fallback
+      maxAdults: room.maxAdults ?? room.maxGuests ?? 2,
+      maxChildren: room.maxChildren ?? 0,
     });
     setShowModal(true);
   };
@@ -134,10 +142,22 @@ const Rooms = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    const payload = {
+      ...formData,
+      // đảm bảo kiểu number
+      price: Number(formData.price),
+      discount: Number(formData.discount) || 0,
+      size: Number(formData.size) || 0,
+      numberOfBeds: Number(formData.numberOfBeds) || 1,
+      maxAdults: Number(formData.maxAdults) || 1,
+      maxChildren: Number(formData.maxChildren) || 0,
+    };
+
     if (editingRoom) {
-      updateMutation.mutate({ id: editingRoom._id, data: formData });
+      updateMutation.mutate({ id: editingRoom._id, data: payload });
     } else {
-      createMutation.mutate(formData);
+      createMutation.mutate(payload);
     }
   };
 
@@ -148,7 +168,7 @@ const Rooms = () => {
   };
 
   const handleImageUrlsChange = (value) => {
-    const urls = value.split('\n').filter(url => url.trim());
+    const urls = value.split('\n').filter((url) => url.trim());
     setFormData({ ...formData, images: urls });
   };
 
@@ -159,12 +179,12 @@ const Rooms = () => {
     if (currentAmenities.includes(amenityValue)) {
       setFormData({
         ...formData,
-        amenities: currentAmenities.filter(a => a !== amenityValue)
+        amenities: currentAmenities.filter((a) => a !== amenityValue),
       });
     } else {
       setFormData({
         ...formData,
-        amenities: [...currentAmenities, amenityValue]
+        amenities: [...currentAmenities, amenityValue],
       });
     }
   };
@@ -173,7 +193,7 @@ const Rooms = () => {
     if (customAmenity.trim() && !formData.amenities.includes(customAmenity.trim())) {
       setFormData({
         ...formData,
-        amenities: [...formData.amenities, customAmenity.trim()]
+        amenities: [...formData.amenities, customAmenity.trim()],
       });
       setCustomAmenity('');
     }
@@ -182,7 +202,7 @@ const Rooms = () => {
   const removeCustomAmenity = (amenity) => {
     setFormData({
       ...formData,
-      amenities: formData.amenities.filter(a => a !== amenity)
+      amenities: formData.amenities.filter((a) => a !== amenity),
     });
   };
 
@@ -249,24 +269,43 @@ const Rooms = () => {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phòng</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Khách sạn</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Loại</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Giá</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Đánh giá</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Thao tác</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Phòng
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Khách sạn
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Loại
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Giá
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Đánh giá
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Sức chứa
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Trạng thái
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  Thao tác
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {roomsData?.data?.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center">
                       <FaHotel className="text-6xl text-gray-300 mb-4" />
-                      <h3 className="text-xl font-semibold text-gray-700 mb-2">Chưa có phòng nào</h3>
+                      <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                        Chưa có phòng nào
+                      </h3>
                       <p className="text-gray-500 mb-6">
-                        {searchTerm || filterType 
+                        {searchTerm || filterType
                           ? 'Không tìm thấy phòng phù hợp. Thử thay đổi bộ lọc.'
                           : 'Hãy thêm phòng đầu tiên để bắt đầu.'}
                       </p>
@@ -282,70 +321,79 @@ const Rooms = () => {
               ) : (
                 roomsData?.data?.map((room) => (
                   <tr key={room._id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-3">
-                      <img
-                        src={room.images?.[0]}
-                        alt={room.name}
-                        className="w-16 h-16 object-cover rounded-lg"
-                      />
-                      <div>
-                        <div className="font-semibold">{room.name}</div>
-                        <div className="text-sm text-gray-500">
-                          {room.maxGuests} khách • {room.size}m²
+                    <td className="px-6 py-4">
+                      <div className="flex items-center space-x-3">
+                        <img
+                          src={room.images?.[0]}
+                          alt={room.name}
+                          className="w-16 h-16 object-cover rounded-lg"
+                        />
+                        <div>
+                          <div className="font-semibold">{room.name}</div>
+                          <div className="text-sm text-gray-500">
+                            {/* hiển thị rõ người lớn + trẻ em + diện tích */}
+                            {room.maxAdults ?? 0} NL • {room.maxChildren ?? 0} TE •{' '}
+                            {room.size}m²
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm">{room.hotelId?.name || 'N/A'}</div>
-                    <div className="text-xs text-gray-500">{room.hotelId?.city}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="capitalize text-sm">{room.roomType}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="font-semibold">{formatPrice(room.price)}</div>
-                    {room.discount > 0 && (
-                      <div className="text-xs text-red-500">-{room.discount}%</div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center">
-                      <FaStar className="text-yellow-500 mr-1" />
-                      <span className="font-semibold">{room.rating?.toFixed(1) || 'N/A'}</span>
-                      <span className="text-xs text-gray-500 ml-1">
-                        ({room.totalReviews || 0})
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm">{room.hotelId?.name || 'N/A'}</div>
+                      <div className="text-xs text-gray-500">{room.hotelId?.city}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="capitalize text-sm">{room.roomType}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-semibold">{formatPrice(room.price)}</div>
+                      {room.discount > 0 && (
+                        <div className="text-xs text-red-500">-{room.discount}%</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <FaStar className="text-yellow-500 mr-1" />
+                        <span className="font-semibold">
+                          {room.rating?.toFixed(1) || 'N/A'}
+                        </span>
+                        <span className="text-xs text-gray-500 ml-1">
+                          ({room.totalReviews || 0})
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm">
+                        Tối đa {room.maxAdults + (room.maxChildren || 0)} khách
                       </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-2 py-1 text-xs rounded-full ${
-                        room.availability
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}
-                    >
-                      {room.availability ? 'Còn phòng' : 'Hết phòng'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => openEditModal(room)}
-                      className="text-blue-600 hover:text-blue-800 mr-3"
-                    >
-                      <FaEdit />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(room._id)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      <FaTrash />
-                    </button>
-                  </td>
-                </tr>
-              ))
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`px-2 py-1 text-xs rounded-full ${
+                          room.availability
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {room.availability ? 'Còn phòng' : 'Hết phòng'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => openEditModal(room)}
+                        className="text-blue-600 hover:text-blue-800 mr-3"
+                      >
+                        <FaEdit />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(room._id)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <FaTrash />
+                      </button>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
@@ -355,7 +403,7 @@ const Rooms = () => {
         {roomsData?.pages > 1 && (
           <div className="flex justify-center items-center space-x-2 p-4 border-t">
             <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
               className="btn btn-outline btn-sm"
             >
@@ -365,7 +413,7 @@ const Rooms = () => {
               Trang {page} / {roomsData.pages}
             </span>
             <button
-              onClick={() => setPage(p => Math.min(roomsData.pages, p + 1))}
+              onClick={() => setPage((p) => Math.min(roomsData.pages, p + 1))}
               disabled={page === roomsData.pages}
               className="btn btn-outline btn-sm"
             >
@@ -402,7 +450,9 @@ const Rooms = () => {
                   <label className="block text-sm font-medium mb-2">Mô tả *</label>
                   <textarea
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
                     className="input"
                     rows="3"
                     required
@@ -413,7 +463,9 @@ const Rooms = () => {
                   <label className="block text-sm font-medium mb-2">Khách sạn *</label>
                   <select
                     value={formData.hotelId}
-                    onChange={(e) => setFormData({ ...formData, hotelId: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, hotelId: e.target.value })
+                    }
                     className="input"
                     required
                   >
@@ -430,7 +482,9 @@ const Rooms = () => {
                   <label className="block text-sm font-medium mb-2">Loại phòng *</label>
                   <select
                     value={formData.roomType}
-                    onChange={(e) => setFormData({ ...formData, roomType: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, roomType: e.target.value })
+                    }
                     className="input"
                     required
                   >
@@ -447,7 +501,9 @@ const Rooms = () => {
                   <input
                     type="number"
                     value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, price: e.target.value })
+                    }
                     className="input"
                     required
                     min="0"
@@ -459,22 +515,53 @@ const Rooms = () => {
                   <input
                     type="number"
                     value={formData.discount}
-                    onChange={(e) => setFormData({ ...formData, discount: parseInt(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        discount: parseInt(e.target.value) || 0,
+                      })
+                    }
                     className="input"
                     min="0"
                     max="100"
                   />
                 </div>
 
+                {/* SỐ NGƯỜI LỚN & TRẺ EM */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">Số khách tối đa *</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Số người lớn tối đa *
+                  </label>
                   <input
                     type="number"
-                    value={formData.maxGuests}
-                    onChange={(e) => setFormData({ ...formData, maxGuests: parseInt(e.target.value) })}
+                    value={formData.maxAdults}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        maxAdults: parseInt(e.target.value) || 1,
+                      })
+                    }
                     className="input"
                     required
                     min="1"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Số trẻ em tối đa
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.maxChildren}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        maxChildren: parseInt(e.target.value) || 0,
+                      })
+                    }
+                    className="input"
+                    min="0"
                   />
                 </div>
 
@@ -483,7 +570,9 @@ const Rooms = () => {
                   <input
                     type="number"
                     value={formData.size}
-                    onChange={(e) => setFormData({ ...formData, size: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, size: e.target.value })
+                    }
                     className="input"
                     required
                     min="0"
@@ -495,7 +584,12 @@ const Rooms = () => {
                   <input
                     type="number"
                     value={formData.numberOfBeds}
-                    onChange={(e) => setFormData({ ...formData, numberOfBeds: parseInt(e.target.value) })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        numberOfBeds: parseInt(e.target.value) || 1,
+                      })
+                    }
                     className="input"
                     required
                     min="1"
@@ -506,7 +600,9 @@ const Rooms = () => {
                   <label className="block text-sm font-medium mb-2">Loại giường *</label>
                   <select
                     value={formData.bedType}
-                    onChange={(e) => setFormData({ ...formData, bedType: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, bedType: e.target.value })
+                    }
                     className="input"
                     required
                   >
@@ -522,7 +618,12 @@ const Rooms = () => {
                     <input
                       type="checkbox"
                       checked={formData.availability}
-                      onChange={(e) => setFormData({ ...formData, availability: e.target.checked })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          availability: e.target.checked,
+                        })
+                      }
                       className="rounded text-primary focus:ring-primary"
                     />
                     <span className="text-sm font-medium">Còn phòng</span>
@@ -538,13 +639,17 @@ const Rooms = () => {
                     onChange={(e) => handleImageUrlsChange(e.target.value)}
                     className="input"
                     rows="3"
-                    placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"
+                    placeholder={
+                      'https://example.com/image1.jpg\nhttps://example.com/image2.jpg'
+                    }
                   />
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-3">Tiện nghi phòng</label>
-                  
+                  <label className="block text-sm font-medium mb-3">
+                    Tiện nghi phòng
+                  </label>
+
                   {/* Preset amenities */}
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
                     {ROOM_AMENITIES.map((amenity) => (
@@ -563,20 +668,27 @@ const Rooms = () => {
                           className="rounded text-primary focus:ring-primary"
                         />
                         <span className="text-xl">{amenity.icon}</span>
-                        <span className="text-sm font-medium flex-1">{amenity.label}</span>
+                        <span className="text-sm font-medium flex-1">
+                          {amenity.label}
+                        </span>
                       </label>
                     ))}
                   </div>
 
                   {/* Custom amenities */}
                   <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                    <label className="block text-sm font-medium mb-2">Tiện nghi khác</label>
+                    <label className="block text-sm font-medium mb-2">
+                      Tiện nghi khác
+                    </label>
                     <div className="flex gap-2 mb-3">
                       <input
                         type="text"
                         value={customAmenity}
                         onChange={(e) => setCustomAmenity(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomAmenity())}
+                        onKeyPress={(e) =>
+                          e.key === 'Enter' &&
+                          (e.preventDefault(), addCustomAmenity())
+                        }
                         className="input flex-1"
                         placeholder="Nhập tiện nghi tùy chỉnh..."
                       />
@@ -588,12 +700,16 @@ const Rooms = () => {
                         <FaPlus />
                       </button>
                     </div>
-                    
+
                     {/* Display custom amenities */}
-                    {formData.amenities.filter(a => !ROOM_AMENITIES.some(ra => ra.value === a)).length > 0 && (
+                    {formData.amenities.filter(
+                      (a) => !ROOM_AMENITIES.some((ra) => ra.value === a)
+                    ).length > 0 && (
                       <div className="flex flex-wrap gap-2">
                         {formData.amenities
-                          .filter(a => !ROOM_AMENITIES.some(ra => ra.value === a))
+                          .filter(
+                            (a) => !ROOM_AMENITIES.some((ra) => ra.value === a)
+                          )
                           .map((amenity, index) => (
                             <span
                               key={index}
@@ -628,7 +744,7 @@ const Rooms = () => {
                   className="btn btn-primary"
                   disabled={createMutation.isPending || updateMutation.isPending}
                 >
-                  {(createMutation.isPending || updateMutation.isPending)
+                  {createMutation.isPending || updateMutation.isPending
                     ? 'Đang xử lý...'
                     : editingRoom
                     ? 'Cập nhật'
@@ -644,4 +760,3 @@ const Rooms = () => {
 };
 
 export default Rooms;
-

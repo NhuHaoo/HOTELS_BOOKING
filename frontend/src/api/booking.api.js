@@ -30,5 +30,9 @@ export const bookingAPI = {
   updatePaymentStatus: (id, data) => {
     return axiosClient.put(`/bookings/${id}/payment`, data);
   },
-};
 
+  // ⭐ NEW: Reschedule booking (Đổi lịch)
+  rescheduleBooking: (id, newDates) => {
+    return axiosClient.put(`/bookings/${id}/reschedule`, newDates);
+  },
+};

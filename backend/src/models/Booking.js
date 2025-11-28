@@ -75,11 +75,21 @@ const bookingSchema = new mongoose.Schema({
   specialRequests: {
     type: String
   },
+
+  // 🔧 SỬA Ở ĐÂY
   bookingStatus: {
     type: String,
-    enum: ['confirmed', 'checked-in', 'checked-out', 'cancelled', 'no-show'],
-    default: 'confirmed'
+    enum: [
+      'pending',      // ✅ thêm trạng thái chờ
+      'confirmed',
+      'checked-in',
+      'checked-out',
+      'cancelled',
+      'no-show'
+    ],
+    default: 'pending' // ✅ default khớp với createBooking & FE
   },
+
   paymentDetails: {
     transactionId: String,
     paymentDate: Date,
@@ -131,7 +141,10 @@ const bookingSchema = new mongoose.Schema({
 // Generate unique booking code
 bookingSchema.pre('save', function(next) {
   if (!this.bookingCode) {
-    this.bookingCode = 'BK' + Date.now() + Math.random().toString(36).substr(2, 9).toUpperCase();
+    this.bookingCode =
+      'BK' +
+      Date.now() +
+      Math.random().toString(36).substr(2, 9).toUpperCase();
   }
   next();
 });
@@ -147,4 +160,3 @@ bookingSchema.index({ bookingCode: 1 });
 bookingSchema.index({ paymentStatus: 1 });
 
 module.exports = mongoose.model('Booking', bookingSchema);
-

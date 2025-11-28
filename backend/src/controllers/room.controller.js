@@ -112,7 +112,7 @@ exports.getRooms = async (req, res) => {
       maxPrice,
       roomType,
       amenities,
-      maxGuests,
+      maxGuests,       // tổng khách FE gửi lên (guests)
       adults,
       children,
       rating,
@@ -132,7 +132,7 @@ exports.getRooms = async (req, res) => {
       limit = 10,
       sort = '-createdAt',
 
-      hotelId // ⚡ thêm hotelId
+      hotelId // xem phòng của 1 khách sạn cụ thể
     } = req.query;
 
     // Build query
@@ -140,7 +140,6 @@ exports.getRooms = async (req, res) => {
     const isHotelMode = !!hotelId;
 
     if (isHotelMode) {
-      // Xem phòng của 1 khách sạn cụ thể
       query.hotelId = hotelId;
     }
 
@@ -150,7 +149,7 @@ exports.getRooms = async (req, res) => {
       const fuzzyRegex = new RegExp(escaped, 'i');
 
       if (isHotelMode) {
-        // Đang fix vào 1 khách sạn → chỉ search trong các phòng của KS đó
+        // Đang xem trong 1 khách sạn → chỉ search trong các phòng của KS đó
         query.$or = [
           { name: fuzzyRegex },
           { description: fuzzyRegex }
@@ -239,41 +238,82 @@ exports.getRooms = async (req, res) => {
 
     // Amenities
     if (amenities) {
-      const amenitiesArray = amenities.split(',');
-      query.amenities = { $all: amenitiesArray };
-    }
-
-    // Max guests
-    if (maxGuests) {
-      query.maxGuests = { $gte: Number(maxGuests) };
-    }
-
-    // Adults + children filter
-    if (adults || children) {
-      const totalGuests = (Number(adults) || 0) + (Number(children) || 0);
-      if (totalGuests > 0) {
-        query.maxGuests = { $gte: totalGuests };
+      const amenitiesArray = amenities
+        .split(',')
+        .map(a => a.trim())
+        .filter(Boolean);
+      if (amenitiesArray.length) {
+        query.amenities = { $all: amenitiesArray };
       }
+    }
 
-      // Giữ logic cũ cho maxAdults
-      if (adults) {
-        query.$or = [
-          { maxAdults: { $gte: Number(adults) } },
+    // ⭐⭐ LỌC THEO NGƯỜI LỚN + TRẺ EM / TỔNG KHÁCH ⭐⭐
+    const adultsNum = Number(adults);
+    const childrenNum = Number(children);
+
+    const hasAdults = Number.isFinite(adultsNum) && adultsNum > 0;
+    const hasChildren = Number.isFinite(childrenNum) && childrenNum >= 0;
+
+    const totalGuests =
+      (hasAdults ? adultsNum : 0) +
+      (hasChildren ? childrenNum : 0);
+
+    // Nếu FE có gửi maxGuests riêng → lấy max giữa 2 cái
+    let minGuestsNeeded = 0;
+    if (!isNaN(Number(maxGuests)) && Number(maxGuests) > 0) {
+      minGuestsNeeded = Number(maxGuests);
+    }
+    if (totalGuests > 0) {
+      minGuestsNeeded = Math.max(minGuestsNeeded, totalGuests);
+    }
+    if (minGuestsNeeded > 0) {
+      query.maxGuests = { $gte: minGuestsNeeded };
+    }
+
+    // Điều kiện chi tiết theo người lớn / trẻ em (mềm, không làm chặt quá)
+    const andConditions = [];
+
+    if (hasAdults) {
+      andConditions.push({
+        $or: [
+          { maxAdults: { $gte: adultsNum } },
           { maxAdults: { $exists: false } },
           { maxAdults: null }
-        ];
+        ]
+      });
+    }
+
+    if (hasChildren) {
+      andConditions.push({
+        $or: [
+          { maxChildren: { $gte: childrenNum } },
+          { maxChildren: { $exists: false } },
+          { maxChildren: null }
+        ]
+      });
+    }
+
+    if (andConditions.length > 0) {
+      if (query.$and) {
+        query.$and = query.$and.concat(andConditions);
+      } else {
+        query.$and = andConditions;
       }
     }
+    // ⭐⭐ HẾT PHẦN NGƯỜI LỚN + TRẺ EM ⭐⭐
 
     // Rating
     if (rating) query.rating = { $gte: Number(rating) };
 
     // Availability status
-    if (availability !== undefined)
+    if (availability !== undefined) {
       query.availability = availability === 'true';
+    }
 
     // Pagination
-    const startIndex = (page - 1) * limit;
+    const pageNum = Number(page) || 1;
+    const limitNum = Number(limit) || 10;
+    const startIndex = (pageNum - 1) * limitNum;
 
     // Execute query
     let rooms = await Room.find(query)
@@ -282,7 +322,7 @@ exports.getRooms = async (req, res) => {
         'name address city rating location description introduction hotelType starRating cancellationPolicy reschedulePolicy'
       )
       .sort(sort)
-      .limit(Number(limit))
+      .limit(limitNum)
       .skip(startIndex);
 
     const total = await Room.countDocuments(query);
@@ -292,12 +332,14 @@ exports.getRooms = async (req, res) => {
       rooms.map(async (room) => {
         const roomObj = room.toObject();
 
+        // Số lượng phòng còn trống trong ngày
         roomObj.availableRoomsCount = await getAvailableRoomsCount(
           room._id,
           checkIn,
           checkOut
         );
 
+        // Ngày còn trống
         if (checkIn && checkOut) {
           roomObj.availableDates = await getAvailableDates(
             room._id,
@@ -306,6 +348,7 @@ exports.getRooms = async (req, res) => {
           );
         }
 
+        // Tổng review của khách sạn
         if (room.hotelId) {
           const hotelRoomIds = await Room.find({
             hotelId: room.hotelId._id
@@ -319,6 +362,7 @@ exports.getRooms = async (req, res) => {
           roomObj.hotelReviewsCount = reviewCount;
         }
 
+        // fallback nếu thiếu maxAdults / maxChildren
         if (!roomObj.maxAdults)
           roomObj.maxAdults = roomObj.maxGuests || 2;
 
@@ -337,8 +381,8 @@ exports.getRooms = async (req, res) => {
       success: true,
       count: enrichedRooms.length,
       total,
-      page: Number(page),
-      pages: Math.ceil(total / limit),
+      page: pageNum,
+      pages: Math.ceil(total / limitNum),
       data: enrichedRooms
     });
   } catch (error) {
