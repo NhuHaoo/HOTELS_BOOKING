@@ -1,16 +1,19 @@
+// QuanLyKhachSan/backend/src/controllers/admin.controller.js
 const User = require('../models/User');
 const Room = require('../models/Room');
 const Hotel = require('../models/Hotel');
 const Booking = require('../models/Booking');
 const Review = require('../models/Review');
 
+
+// ====================== DASHBOARD ======================
 // @desc    Get dashboard statistics
 // @route   GET /api/admin/dashboard
 // @access  Private/Admin
 exports.getDashboard = async (req, res) => {
   try {
     // Total counts
-    const totalUsers = await User.countDocuments({ role: 'user' });
+    const totalUsers = await User.countDocuments({ role: 'user' }); // chỉ đếm user thường
     const totalRooms = await Room.countDocuments();
     const totalHotels = await Hotel.countDocuments();
     const totalBookings = await Booking.countDocuments();
@@ -100,6 +103,8 @@ exports.getDashboard = async (req, res) => {
   }
 };
 
+
+// ====================== REVENUE ======================
 // @desc    Get revenue statistics
 // @route   GET /api/admin/revenue
 // @access  Private/Admin
@@ -183,6 +188,8 @@ exports.getRevenue = async (req, res) => {
   }
 };
 
+
+// ====================== ANALYTICS ======================
 // @desc    Get analytics data
 // @route   GET /api/admin/analytics
 // @access  Private/Admin
@@ -233,7 +240,9 @@ exports.getAnalytics = async (req, res) => {
           _id: null,
           total: { $sum: 1 },
           cancelled: {
-            $sum: { $cond: [{ $eq: ['$bookingStatus', 'cancelled'] }, 1, 0] }
+            $sum: {
+              $cond: [{ $eq: ['$bookingStatus', 'cancelled'] }, 1, 0]
+            }
           }
         }
       }
@@ -304,6 +313,8 @@ exports.getAnalytics = async (req, res) => {
   }
 };
 
+
+// ====================== USERS ======================
 // @desc    Get all users
 // @route   GET /api/admin/users
 // @access  Private/Admin
@@ -356,6 +367,184 @@ exports.getUsers = async (req, res) => {
   }
 };
 
+
+// @desc    Lấy danh sách khách sạn để gán cho Manager
+// @route   GET /api/admin/hotels
+// @access  Private/Admin
+exports.getHotels = async (req, res) => {
+  try {
+    const hotels = await Hotel.find().select('name city _id');
+
+    res.status(200).json({
+      success: true,
+      data: hotels
+    });
+  } catch (error) {
+    console.error('Get hotels error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+
+// @desc    Create new user (user hoặc manager)
+// @route   POST /api/admin/users
+// @access  Private/Admin
+exports.createUser = async (req, res) => {
+  try {
+    const { name, email, phone, password, role, hotelId } = req.body;
+
+    if (!name || !email || !phone || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu thông tin bắt buộc'
+      });
+    }
+
+    // chỉ cho phép 2 role
+    const allowedRoles = ['user', 'manager'];
+    if (!role || !allowedRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Role không hợp lệ (chỉ user hoặc manager)'
+      });
+    }
+
+    // manager bắt buộc có hotelId
+    if (role === 'manager' && !hotelId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Manager phải gán với 1 khách sạn (hotelId)'
+      });
+    }
+
+    // check email trùng
+    const existed = await User.findOne({ email });
+    if (existed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email đã tồn tại'
+      });
+    }
+
+    // nếu là manager thì kiểm tra hotel tồn tại
+    if (role === 'manager') {
+      const hotel = await Hotel.findById(hotelId);
+      if (!hotel) {
+        return res.status(400).json({
+          success: false,
+          message: 'Khách sạn không tồn tại (hotelId không hợp lệ)'
+        });
+      }
+    }
+
+    // tạo user (passwordHash sẽ được pre-save hook hash)
+    const newUser = new User({
+      name,
+      email,
+      phone,
+      passwordHash: password,
+      role,
+      hotelId: role === 'manager' ? hotelId : null
+    });
+
+    await newUser.save();
+
+    const safeUser = newUser.toObject();
+    delete safeUser.passwordHash;
+
+    res.status(201).json({
+      success: true,
+      message: 'Tạo tài khoản thành công',
+      data: safeUser
+    });
+
+  } catch (error) {
+    console.error('Create user error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+
+// @desc    Update user role
+// @route   PUT /api/admin/users/:id/role
+// @access  Private/Admin
+exports.updateUserRole = async (req, res) => {
+  try {
+    const { role } = req.body;
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { role },
+      { new: true, runValidators: true }
+    ).select('-passwordHash');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'User role updated successfully',
+      data: user
+    });
+  } catch (error) {
+    console.error('Update user role error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+
+// @desc    Delete user
+// @route   DELETE /api/admin/users/:id
+// @access  Private/Admin
+exports.deleteUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Don't allow deleting admins
+    if (user.role === 'admin') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete admin users'
+      });
+    }
+
+    await user.deleteOne();
+
+    res.status(200).json({
+      success: true,
+      message: 'User deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+
+// ====================== BOOKINGS ======================
 // @desc    Get all bookings
 // @route   GET /api/admin/bookings
 // @access  Private/Admin
@@ -403,76 +592,6 @@ exports.getBookings = async (req, res) => {
   }
 };
 
-// @desc    Update user role
-// @route   PUT /api/admin/users/:id/role
-// @access  Private/Admin
-exports.updateUserRole = async (req, res) => {
-  try {
-    const { role } = req.body;
-
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { role },
-      { new: true, runValidators: true }
-    ).select('-passwordHash');
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: 'User role updated successfully',
-      data: user
-    });
-  } catch (error) {
-    console.error('Update user role error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
-  }
-};
-
-// @desc    Delete user
-// @route   DELETE /api/admin/users/:id
-// @access  Private/Admin
-exports.deleteUser = async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    // Don't allow deleting admins
-    if (user.role === 'admin') {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot delete admin users'
-      });
-    }
-
-    await user.deleteOne();
-
-    res.status(200).json({
-      success: true,
-      message: 'User deleted successfully'
-    });
-  } catch (error) {
-    console.error('Delete user error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
-  }
-};
 
 // @desc    Update booking status
 // @route   PUT /api/admin/bookings/:id/status
@@ -510,6 +629,7 @@ exports.updateBookingStatus = async (req, res) => {
     });
   }
 };
+
 
 // @desc    Cancel booking
 // @route   PUT /api/admin/bookings/:id/cancel
@@ -550,6 +670,8 @@ exports.cancelBooking = async (req, res) => {
   }
 };
 
+
+// ====================== REVIEWS ======================
 // @desc    Get all reviews
 // @route   GET /api/admin/reviews
 // @access  Private/Admin
@@ -598,6 +720,7 @@ exports.getReviews = async (req, res) => {
   }
 };
 
+
 // @desc    Delete review
 // @route   DELETE /api/admin/reviews/:id
 // @access  Private/Admin
@@ -618,7 +741,8 @@ exports.deleteReview = async (req, res) => {
     const roomId = review.roomId;
     const reviews = await Review.find({ roomId, status: 'approved' });
     if (reviews.length > 0) {
-      const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+      const avgRating =
+        reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
       await Room.findByIdAndUpdate(roomId, {
         rating: parseFloat(avgRating.toFixed(1)),
         totalReviews: reviews.length
@@ -642,4 +766,3 @@ exports.deleteReview = async (req, res) => {
     });
   }
 };
-

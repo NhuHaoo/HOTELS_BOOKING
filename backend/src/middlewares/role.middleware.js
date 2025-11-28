@@ -1,4 +1,4 @@
-// Grant access to specific roles
+// Grant access to specific roles (multi-role)
 exports.authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -38,3 +38,21 @@ exports.isAdmin = (req, res, next) => {
   next();
 };
 
+// Check if user is manager
+exports.isManager = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: 'Not authorized to access this route'
+    });
+  }
+
+  if (req.user.role !== 'manager') {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. Manager privileges required.'
+    });
+  }
+
+  next();
+};

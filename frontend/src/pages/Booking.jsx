@@ -492,7 +492,7 @@ const Booking = () => {
                       })()}
                     </div>
                   </div>
-                )}
+                )
 
                 <p className="text-xs text-gray-600 text-center mt-4">
                   Bằng việc đặt phòng, bạn đồng ý với{' '}

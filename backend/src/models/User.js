@@ -26,15 +26,32 @@ const userSchema = new mongoose.Schema({
     minlength: 6,
     select: false
   },
+
+  // ---------------------------
+  // 🔥 ROLE cập nhật tại đây
+  // ---------------------------
   role: {
     type: String,
-    enum: ['user', 'admin'],
+    enum: ['user', 'manager', 'admin'],
     default: 'user'
   },
-  favorites: [{
+
+  // ---------------------------
+  // 🔥 Manager phải có hotelId
+  // Các role khác có thể để null
+  // ---------------------------
+  hotelId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Room'
-  }],
+    ref: 'Hotel',
+    default: null
+  },
+
+  favorites: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Room'
+    }
+  ],
   avatar: {
     type: String,
     default: null
@@ -45,16 +62,18 @@ const userSchema = new mongoose.Schema({
   },
   resetPasswordToken: String,
   resetPasswordExpire: Date,
+
   createdAt: {
     type: Date,
     default: Date.now
   }
-}, {
+},
+{
   timestamps: true
 });
 
 // Hash password before saving
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   if (!this.isModified('passwordHash')) {
     next();
   }
@@ -63,9 +82,8 @@ userSchema.pre('save', async function(next) {
 });
 
 // Match password
-userSchema.methods.matchPassword = async function(enteredPassword) {
+userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.passwordHash);
 };
 
 module.exports = mongoose.model('User', userSchema);
-

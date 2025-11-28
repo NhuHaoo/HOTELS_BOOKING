@@ -2,51 +2,44 @@ import axiosClient from './axiosClient';
 
 export const adminAPI = {
   // Dashboard & Analytics
-  getDashboard: () => {
-    return axiosClient.get('/admin/dashboard');
-  },
+  getDashboard: () => axiosClient.get('/admin/dashboard'),
 
-  getRevenue: (params) => {
-    return axiosClient.get('/admin/revenue', { params });
-  },
+  getRevenue: (params) => axiosClient.get('/admin/revenue', { params }),
 
-  getAnalytics: () => {
-    return axiosClient.get('/admin/analytics');
-  },
+  getAnalytics: () => axiosClient.get('/admin/analytics'),
 
-  // Users
-  getUsers: (params) => {
-    return axiosClient.get('/admin/users', { params });
-  },
+  // ======================
+  // USERS
+  // ======================
+  getUsers: (params) => axiosClient.get('/admin/users', { params }),
 
-  updateUserRole: (id, role) => {
-    return axiosClient.put(`/admin/users/${id}/role`, { role });
-  },
+  // TẠO USER / MANAGER
+  createUser: (data) => axiosClient.post('/admin/users', data),
 
-  deleteUser: (id) => {
-    return axiosClient.delete(`/admin/users/${id}`);
-  },
+  updateUserRole: (id, role) =>
+    axiosClient.put(`/admin/users/${id}/role`, { role }),
 
-  // Bookings
-  getBookings: (params) => {
-    return axiosClient.get('/admin/bookings', { params });
-  },
+  deleteUser: (id) => axiosClient.delete(`/admin/users/${id}`),
 
-  updateBookingStatus: (id, status) => {
-    return axiosClient.put(`/admin/bookings/${id}/status`, { status });
-  },
+  // ======================
+  // HOTELS (cần để chọn hotelId cho Manager)
+  // ======================
+  getHotels: () => axiosClient.get('/admin/hotels'),
 
-  cancelBooking: (id) => {
-    return axiosClient.put(`/admin/bookings/${id}/cancel`);
-  },
+  // ======================
+  // BOOKINGS
+  // ======================
+  getBookings: (params) => axiosClient.get('/admin/bookings', { params }),
 
-  // Reviews
-  getReviews: (params) => {
-    return axiosClient.get('/admin/reviews', { params });
-  },
+  updateBookingStatus: (id, status) =>
+    axiosClient.put(`/admin/bookings/${id}/status`, { status }),
 
-  deleteReview: (id) => {
-    return axiosClient.delete(`/admin/reviews/${id}`);
-  },
+  cancelBooking: (id) => axiosClient.put(`/admin/bookings/${id}/cancel`),
+
+  // ======================
+  // REVIEWS
+  // ======================
+  getReviews: (params) => axiosClient.get('/admin/reviews', { params }),
+
+  deleteReview: (id) => axiosClient.delete(`/admin/reviews/${id}`)
 };
-

@@ -17,6 +17,10 @@ const aiRoutes = require('./routes/ai.routes');
 const uploadRoutes = require('./routes/upload.routes');
 const weatherRoutes = require('./routes/weather.routes');
 
+// ✅ Manager routes
+const managerRoutes = require('./routes/manager.routes');
+const managerRoomRoutes = require('./routes/manager.rooms.routes');
+
 // Initialize express app
 const app = express();
 
@@ -63,7 +67,9 @@ app.get('/api', (req, res) => {
       admin: '/api/admin',
       ai: '/api/ai',
       upload: '/api/upload',
-      weather: '/api/weather'
+      weather: '/api/weather',
+      manager: '/api/manager',
+      managerRooms: '/api/manager/rooms'
     }
   });
 });
@@ -81,8 +87,14 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/weather', weatherRoutes);
 
+// ✅ Manager main (dashboard/bookings/reviews...)
+app.use('/api/manager', managerRoutes);
+
+// ✅ Manager rooms CRUD
+app.use('/api/manager/rooms', managerRoomRoutes);
+
 // 404 handler
-app.use((req, res, next) => {
+app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: 'Route not found'
@@ -93,4 +105,3 @@ app.use((req, res, next) => {
 app.use(errorHandler);
 
 module.exports = app;
-

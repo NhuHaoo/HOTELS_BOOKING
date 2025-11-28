@@ -48,10 +48,24 @@ const Login = () => {
     
     if (result.success) {
       toast.success('Đăng nhập thành công!');
-      navigate('/');
+
+      // 🔥 LẤY USER HIỆN TẠI TRONG STORE SAU KHI LOGIN
+      const currentUser = useAuthStore.getState().user;
+
+      // 🔥 ĐIỀU HƯỚNG THEO ROLE
+      if (currentUser?.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else if (currentUser?.role === 'manager') {
+        navigate('/manager/dashboard');
+      } else {
+        navigate('/');
+      }
+
     } else {
       // Show error dialog instead of toast
-      setErrorMessage(result.error || 'Đăng nhập thất bại. Vui lòng kiểm tra lại email và mật khẩu.');
+      setErrorMessage(
+        result.error || 'Đăng nhập thất bại. Vui lòng kiểm tra lại email và mật khẩu.'
+      );
       setShowErrorDialog(true);
     }
   };
@@ -238,4 +252,3 @@ const Login = () => {
 };
 
 export default Login;
-

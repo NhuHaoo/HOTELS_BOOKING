@@ -52,46 +52,61 @@ const roomSchema = new mongoose.Schema({
     min: 0,
     default: 0
   },
+
+  // ---- ROOM TYPE (đã thêm 'standard' + tự chuyển về chữ thường) ----
   roomType: {
     type: String,
-    enum: ['single', 'double', 'suite', 'deluxe', 'family', 'presidential'],
-    default: 'single'
+    enum: ['single', 'double', 'suite', 'deluxe', 'family', 'presidential', 'standard'],
+    default: 'single',
+    set: v => v.toLowerCase()
   },
+
   size: {
-    type: Number,
-    required: false
+    type: Number
   },
+
+  // ---- BED TYPE (đã có setter) ----
   bedType: {
     type: String,
     enum: ['single', 'double', 'queen', 'king'],
-    default: 'double'
+    default: 'double',
+    set: v => v.toLowerCase()
   },
+
   numberOfBeds: {
     type: Number,
     default: 1
   },
+
+  // ---- VIEW (thêm setter để không lỗi khi frontend gửi 'City' hoặc 'POOL') ----
   view: {
     type: String,
     enum: ['city', 'ocean', 'mountain', 'garden', 'pool'],
-    default: 'city'
+    default: 'city',
+    set: v => v.toLowerCase()
   },
+
   floor: {
     type: Number
   },
+
   totalReviews: {
     type: Number,
     default: 0
   },
+
   isActive: {
     type: Boolean,
     default: true
   },
+
   discount: {
     type: Number,
     default: 0,
     min: 0,
     max: 100
   },
+
   createdAt: {
     type: Date,
     default: Date.now
@@ -102,15 +117,14 @@ const roomSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Create indexes for better query performance
+// Indexes tối ưu
 roomSchema.index({ hotelId: 1, price: 1 });
 roomSchema.index({ rating: -1 });
 roomSchema.index({ price: 1 });
 
-// Virtual for final price after discount
+// Virtual price after discount
 roomSchema.virtual('finalPrice').get(function() {
   return this.price * (1 - this.discount / 100);
 });
 
 module.exports = mongoose.model('Room', roomSchema);
-

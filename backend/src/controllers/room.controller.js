@@ -9,7 +9,7 @@ async function getAvailableRoomsCount(roomId, checkIn, checkOut) {
     // If no dates provided, return total rooms of this type
     const room = await Room.findById(roomId);
     if (!room) return 0;
-    
+
     // Count total rooms of same type in same hotel
     const sameTypeRooms = await Room.countDocuments({
       hotelId: room.hotelId,
@@ -17,6 +17,7 @@ async function getAvailableRoomsCount(roomId, checkIn, checkOut) {
       isActive: true,
       availability: true
     });
+
     return sameTypeRooms;
   }
 
@@ -53,7 +54,9 @@ async function getAvailableRoomsCount(roomId, checkIn, checkOut) {
 // Helper function to get available dates for a room
 async function getAvailableDates(roomId, startDate, endDate) {
   const start = startDate ? new Date(startDate) : new Date();
-  const end = endDate ? new Date(endDate) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 days ahead
+  const end = endDate
+    ? new Date(endDate)
+    : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 days ahead
 
   // Get all bookings for this room in date range
   const bookings = await Booking.find({
@@ -78,13 +81,13 @@ async function getAvailableDates(roomId, startDate, endDate) {
   // Generate all dates in range
   const availableDates = [];
   const currentDate = new Date(start);
-  
+
   while (currentDate <= end) {
     const dateStr = currentDate.toISOString().split('T')[0];
     const date = new Date(dateStr);
-    
+
     // Count bookings that overlap with this date
-    const bookingsOnDate = bookings.filter(booking => {
+    const bookingsOnDate = bookings.filter((booking) => {
       return date >= booking.checkIn && date < booking.checkOut;
     });
 
@@ -115,55 +118,84 @@ exports.getRooms = async (req, res) => {
       rating,
       availability,
       search,
+
       // Location-based search
       latitude,
       longitude,
-      radius = 10000, // meters, default 10km
-      // Date range for availability
+      radius = 10000, // default 10km
+
+      // Date range
       checkIn,
       checkOut,
+
       page = 1,
       limit = 10,
-      sort = '-createdAt'
+      sort = '-createdAt',
+
+      hotelId // ⚡ thêm hotelId
     } = req.query;
 
     // Build query
     let query = { isActive: true };
+    const isHotelMode = !!hotelId;
 
-    // Full-text search (tìm kiếm tổng quát)
+    if (isHotelMode) {
+      // Xem phòng của 1 khách sạn cụ thể
+      query.hotelId = hotelId;
+    }
+
+    // ================== SEARCH THEO TỪ KHÓA ==================
     if (search) {
-      // Search in room name, description, hotel name, city
+      const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const fuzzyRegex = new RegExp(escaped, 'i');
+
+      if (isHotelMode) {
+        // Đang fix vào 1 khách sạn → chỉ search trong các phòng của KS đó
+        query.$or = [
+          { name: fuzzyRegex },
+          { description: fuzzyRegex }
+        ];
+      } else {
+        // Search tổng quát: tìm KS theo tên/thành phố, rồi map ra room
+        const hotels = await Hotel.find({
+          $or: [
+            { name: fuzzyRegex },
+            { city: fuzzyRegex },
+            { address: fuzzyRegex },
+            { description: fuzzyRegex }
+          ],
+          isActive: true
+        }).select('_id');
+
+        const hotelIds = hotels.map((h) => h._id);
+
+        query.$or = [
+          { name: fuzzyRegex },
+          { description: fuzzyRegex },
+          { hotelId: { $in: hotelIds } }
+        ];
+      }
+    }
+    // ================== HẾT PHẦN SEARCH ==================
+
+    // Filter by city (CHỈ dùng khi KHÔNG ở chế độ 1 khách sạn)
+    let cityHotelIds = null;
+    if (city && !isHotelMode) {
+      const escapedCity = city.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const cityRegex = new RegExp(escapedCity, 'i');
+
       const hotels = await Hotel.find({
-        $or: [
-          { name: new RegExp(search, 'i') },
-          { city: new RegExp(search, 'i') },
-          { address: new RegExp(search, 'i') },
-          { description: new RegExp(search, 'i') }
-        ],
+        city: cityRegex,
         isActive: true
       }).select('_id');
-      
-      const hotelIds = hotels.map(h => h._id);
-      
-      query.$or = [
-        { name: new RegExp(search, 'i') },
-        { description: new RegExp(search, 'i') },
-        { hotelId: { $in: hotelIds } }
-      ];
+
+      cityHotelIds = hotels.map((h) => h._id.toString());
+      query.hotelId = { $in: cityHotelIds };
     }
 
-    // Filter by city (through hotel)
-    if (city) {
-      const hotels = await Hotel.find({ 
-        city: new RegExp(city, 'i'),
-        isActive: true 
-      }).select('_id');
-      const hotelIds = hotels.map(h => h._id);
-      query.hotelId = { $in: hotelIds };
-    }
-
-    // Filter by location (bán kính)
-    if (latitude && longitude) {
+    // Filter by location (cũng bỏ qua nếu đang xem 1 KS cụ thể)
+    let nearbyHotelIds = null;
+    if (latitude && longitude && !isHotelMode) {
       const lat = parseFloat(latitude);
       const lon = parseFloat(longitude);
       const radiusMeters = parseFloat(radius);
@@ -182,94 +214,90 @@ exports.getRooms = async (req, res) => {
           isActive: true
         }).select('_id');
 
-        const nearbyHotelIds = nearbyHotels.map(h => h._id);
-        
-        if (query.hotelId) {
-          // Combine with existing city filter
-          const existingIds = Array.isArray(query.hotelId.$in) ? query.hotelId.$in : [];
-          query.hotelId = { $in: existingIds.filter(id => nearbyHotelIds.includes(id)) };
+        nearbyHotelIds = nearbyHotels.map((h) => h._id.toString());
+
+        if (cityHotelIds) {
+          const intersectIds = cityHotelIds.filter((id) =>
+            nearbyHotelIds.includes(id)
+          );
+          query.hotelId = { $in: intersectIds };
         } else {
           query.hotelId = { $in: nearbyHotelIds };
         }
       }
     }
 
-    // Filter by price range
+    // Filter by price
     if (minPrice || maxPrice) {
       query.price = {};
       if (minPrice) query.price.$gte = Number(minPrice);
       if (maxPrice && Number(maxPrice) > 0) query.price.$lte = Number(maxPrice);
     }
 
-    // Filter by room type
-    if (roomType) {
-      query.roomType = roomType;
-    }
+    // Room type
+    if (roomType) query.roomType = roomType;
 
-    // Filter by amenities
+    // Amenities
     if (amenities) {
       const amenitiesArray = amenities.split(',');
       query.amenities = { $all: amenitiesArray };
     }
 
-    // Filter by max guests
+    // Max guests
     if (maxGuests) {
       query.maxGuests = { $gte: Number(maxGuests) };
     }
 
-    // Filter by adults and children
+    // Adults + children filter
     if (adults || children) {
       const totalGuests = (Number(adults) || 0) + (Number(children) || 0);
       if (totalGuests > 0) {
         query.maxGuests = { $gte: totalGuests };
       }
-      
-      // Filter by maxAdults if specified
+
+      // Giữ logic cũ cho maxAdults
       if (adults) {
         query.$or = [
           { maxAdults: { $gte: Number(adults) } },
-          { maxAdults: { $exists: false } }, // Rooms without maxAdults field
+          { maxAdults: { $exists: false } },
           { maxAdults: null }
         ];
       }
     }
 
-    // Filter by rating
-    if (rating) {
-      query.rating = { $gte: Number(rating) };
-    }
+    // Rating
+    if (rating) query.rating = { $gte: Number(rating) };
 
-    // Filter by availability
-    if (availability !== undefined) {
+    // Availability status
+    if (availability !== undefined)
       query.availability = availability === 'true';
-    }
 
     // Pagination
     const startIndex = (page - 1) * limit;
 
     // Execute query
     let rooms = await Room.find(query)
-      .populate('hotelId', 'name address city rating location description introduction hotelType starRating cancellationPolicy reschedulePolicy')
+      .populate(
+        'hotelId',
+        'name address city rating location description introduction hotelType starRating cancellationPolicy reschedulePolicy'
+      )
       .sort(sort)
       .limit(Number(limit))
       .skip(startIndex);
 
-    // Get total count
     const total = await Room.countDocuments(query);
 
-    // Enrich rooms with additional data
+    // Enrich rooms
     const enrichedRooms = await Promise.all(
       rooms.map(async (room) => {
         const roomObj = room.toObject();
-        
-        // Calculate available rooms count
+
         roomObj.availableRoomsCount = await getAvailableRoomsCount(
           room._id,
           checkIn,
           checkOut
         );
 
-        // Get available dates
         if (checkIn && checkOut) {
           roomObj.availableDates = await getAvailableDates(
             room._id,
@@ -278,22 +306,27 @@ exports.getRooms = async (req, res) => {
           );
         }
 
-        // Get hotel reviews count
         if (room.hotelId) {
-          const hotelRoomIds = await Room.find({ hotelId: room.hotelId._id }).select('_id');
+          const hotelRoomIds = await Room.find({
+            hotelId: room.hotelId._id
+          }).select('_id');
+
           const reviewCount = await Review.countDocuments({
-            roomId: { $in: hotelRoomIds.map(r => r._id) },
+            roomId: { $in: hotelRoomIds.map((r) => r._id) },
             status: 'approved'
           });
+
           roomObj.hotelReviewsCount = reviewCount;
         }
 
-        // Set default adults/children if not set
-        if (!roomObj.maxAdults) {
+        if (!roomObj.maxAdults)
           roomObj.maxAdults = roomObj.maxGuests || 2;
-        }
+
         if (!roomObj.maxChildren) {
-          roomObj.maxChildren = Math.max(0, (roomObj.maxGuests || 2) - (roomObj.maxAdults || 2));
+          roomObj.maxChildren = Math.max(
+            0,
+            (roomObj.maxGuests || 2) - (roomObj.maxAdults || 2)
+          );
         }
 
         return roomObj;
@@ -310,10 +343,7 @@ exports.getRooms = async (req, res) => {
     });
   } catch (error) {
     console.error('Get rooms error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
@@ -323,27 +353,26 @@ exports.getRooms = async (req, res) => {
 exports.getRoom = async (req, res) => {
   try {
     const { checkIn, checkOut } = req.query;
-    
-    const room = await Room.findById(req.params.id)
-      .populate('hotelId', 'name address city rating location description introduction hotelType starRating amenities phone email checkInTime checkOutTime cancellationPolicy reschedulePolicy');
+
+    const room = await Room.findById(req.params.id).populate(
+      'hotelId',
+      'name address city rating location description introduction hotelType starRating amenities phone email checkInTime checkOutTime cancellationPolicy reschedulePolicy'
+    );
 
     if (!room) {
-      return res.status(404).json({
-        success: false,
-        message: 'Room not found'
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: 'Room not found' });
     }
 
     const roomObj = room.toObject();
 
-    // Calculate available rooms count
     roomObj.availableRoomsCount = await getAvailableRoomsCount(
       room._id,
       checkIn,
       checkOut
     );
 
-    // Get available dates
     if (checkIn && checkOut) {
       roomObj.availableDates = await getAvailableDates(
         room._id,
@@ -352,42 +381,41 @@ exports.getRoom = async (req, res) => {
       );
     }
 
-    // Get hotel reviews
     if (room.hotelId) {
-      const hotelRoomIds = await Room.find({ hotelId: room.hotelId._id }).select('_id');
+      const hotelRoomIds = await Room.find({
+        hotelId: room.hotelId._id
+      }).select('_id');
+
       const reviews = await Review.find({
-        roomId: { $in: hotelRoomIds.map(r => r._id) },
+        roomId: { $in: hotelRoomIds.map((r) => r._id) },
         status: 'approved'
       })
-      .populate('userId', 'name avatar')
-      .sort('-createdAt')
-      .limit(10);
+        .populate('userId', 'name avatar')
+        .sort('-createdAt')
+        .limit(10);
 
       roomObj.hotelReviews = reviews;
+
       roomObj.hotelReviewsCount = await Review.countDocuments({
-        roomId: { $in: hotelRoomIds.map(r => r._id) },
+        roomId: { $in: hotelRoomIds.map((r) => r._id) },
         status: 'approved'
       });
     }
 
-    // Set default adults/children if not set
-    if (!roomObj.maxAdults) {
+    if (!roomObj.maxAdults)
       roomObj.maxAdults = roomObj.maxGuests || 2;
-    }
+
     if (!roomObj.maxChildren) {
-      roomObj.maxChildren = Math.max(0, (roomObj.maxGuests || 2) - (roomObj.maxAdults || 2));
+      roomObj.maxChildren = Math.max(
+        0,
+        (roomObj.maxGuests || 2) - (roomObj.maxAdults || 2)
+      );
     }
 
-    res.status(200).json({
-      success: true,
-      data: roomObj
-    });
+    res.status(200).json({ success: true, data: roomObj });
   } catch (error) {
     console.error('Get room error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
@@ -405,7 +433,6 @@ exports.getRoomsByHotel = async (req, res) => {
       availability: true
     };
 
-    // Exclude current room if specified
     if (excludeRoomId) {
       query._id = { $ne: excludeRoomId };
     }
@@ -422,10 +449,7 @@ exports.getRoomsByHotel = async (req, res) => {
     });
   } catch (error) {
     console.error('Get rooms by hotel error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
@@ -437,10 +461,9 @@ exports.createRoom = async (req, res) => {
     const room = await Room.create(req.body);
 
     // Add room to hotel's rooms array
-    await Hotel.findByIdAndUpdate(
-      room.hotelId,
-      { $push: { rooms: room._id } }
-    );
+    await Hotel.findByIdAndUpdate(room.hotelId, {
+      $push: { rooms: room._id }
+    });
 
     res.status(201).json({
       success: true,
@@ -449,10 +472,9 @@ exports.createRoom = async (req, res) => {
     });
   } catch (error) {
     console.error('Create room error:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'Server error'
-    });
+    res
+      .status(500)
+      .json({ success: false, message: error.message || 'Server error' });
   }
 };
 
@@ -462,22 +484,16 @@ exports.createRoom = async (req, res) => {
 exports.updateRoom = async (req, res) => {
   try {
     let room = await Room.findById(req.params.id);
-
     if (!room) {
-      return res.status(404).json({
-        success: false,
-        message: 'Room not found'
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: 'Room not found' });
     }
 
-    room = await Room.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true
-      }
-    );
+    room = await Room.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true
+    });
 
     res.status(200).json({
       success: true,
@@ -486,10 +502,7 @@ exports.updateRoom = async (req, res) => {
     });
   } catch (error) {
     console.error('Update room error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
@@ -499,19 +512,15 @@ exports.updateRoom = async (req, res) => {
 exports.deleteRoom = async (req, res) => {
   try {
     const room = await Room.findById(req.params.id);
-
     if (!room) {
-      return res.status(404).json({
-        success: false,
-        message: 'Room not found'
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: 'Room not found' });
     }
 
-    // Remove room from hotel's rooms array
-    await Hotel.findByIdAndUpdate(
-      room.hotelId,
-      { $pull: { rooms: room._id } }
-    );
+    await Hotel.findByIdAndUpdate(room.hotelId, {
+      $pull: { rooms: room._id }
+    });
 
     await room.deleteOne();
 
@@ -522,10 +531,7 @@ exports.deleteRoom = async (req, res) => {
     });
   } catch (error) {
     console.error('Delete room error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
@@ -543,7 +549,6 @@ exports.searchRooms = async (req, res) => {
       });
     }
 
-    // Search in room name and description
     const rooms = await Room.find({
       isActive: true,
       $or: [
@@ -561,14 +566,11 @@ exports.searchRooms = async (req, res) => {
     });
   } catch (error) {
     console.error('Search rooms error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-// @desc    Get available rooms for date range
+// @desc    Get available rooms for a date range
 // @route   GET /api/rooms/available
 // @access  Public
 exports.getAvailableRooms = async (req, res) => {
@@ -582,9 +584,7 @@ exports.getAvailableRooms = async (req, res) => {
       });
     }
 
-    const Booking = require('../models/Booking');
-
-    // Find all bookings that overlap with the requested dates
+    // Find overlapping bookings
     const overlappingBookings = await Booking.find({
       $or: [
         {
@@ -596,7 +596,7 @@ exports.getAvailableRooms = async (req, res) => {
       bookingStatus: { $nin: ['cancelled'] }
     }).select('roomId');
 
-    const bookedRoomIds = overlappingBookings.map(b => b.roomId);
+    const bookedRoomIds = overlappingBookings.map((b) => b.roomId);
 
     // Find available rooms
     let query = {
@@ -605,12 +605,12 @@ exports.getAvailableRooms = async (req, res) => {
       isActive: true
     };
 
-    if (guests) {
-      query.maxGuests = { $gte: Number(guests) };
-    }
+    if (guests) query.maxGuests = { $gte: Number(guests) };
 
-    const rooms = await Room.find(query)
-      .populate('hotelId', 'name address city rating location');
+    const rooms = await Room.find(query).populate(
+      'hotelId',
+      'name address city rating location'
+    );
 
     res.status(200).json({
       success: true,
@@ -619,10 +619,6 @@ exports.getAvailableRooms = async (req, res) => {
     });
   } catch (error) {
     console.error('Get available rooms error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
-

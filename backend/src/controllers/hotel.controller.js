@@ -1,7 +1,6 @@
 const Hotel = require('../models/Hotel');
 const Review = require('../models/Review');
 const Room = require('../models/Room');
-const { findNearbyHotels, validateCoordinates } = require('../utils/geo.utils');
 
 // @desc    Get all hotels
 // @route   GET /api/hotels
@@ -23,10 +22,9 @@ exports.getHotels = async (req, res) => {
       sort = '-rating'
     } = req.query;
 
-    // Build query
     let query = { isActive: true };
 
-    // Full-text search (tìm kiếm tổng quát)
+    // Full-text search
     if (search) {
       query.$or = [
         { name: new RegExp(search, 'i') },
@@ -37,6 +35,7 @@ exports.getHotels = async (req, res) => {
       ];
     }
 
+    // City filter
     if (city) {
       query.city = new RegExp(city, 'i');
     }
@@ -45,17 +44,17 @@ exports.getHotels = async (req, res) => {
       query.rating = { $gte: Number(rating) };
     }
 
-    // Filter by hotel type
+    // Hotel type
     if (hotelType) {
       query.hotelType = hotelType;
     }
 
-    // Filter by star rating
+    // Star rating
     if (starRating) {
       query.starRating = Number(starRating);
     }
 
-    // Filter by location (bán kính)
+    // Location-based filter
     if (latitude && longitude) {
       const lat = parseFloat(latitude);
       const lon = parseFloat(longitude);
@@ -74,47 +73,43 @@ exports.getHotels = async (req, res) => {
       }
     }
 
-    // Pagination
     const startIndex = (page - 1) * limit;
 
-    // Execute query
     const hotels = await Hotel.find(query)
       .populate('rooms')
       .sort(sort)
       .limit(Number(limit))
       .skip(startIndex);
 
-    // Calculate totalReviews and available rooms for each hotel
     const hotelsWithStats = await Promise.all(
       hotels.map(async (hotel) => {
         const hotelObj = hotel.toObject();
-        
-        // Count reviews for all rooms of this hotel
+
         if (hotelObj.rooms && hotelObj.rooms.length > 0) {
-          const roomIds = hotelObj.rooms.map(room => room._id || room);
-          const reviewCount = await Review.countDocuments({ 
+          const roomIds = hotelObj.rooms.map((room) => room._id || room);
+          const reviewCount = await Review.countDocuments({
             roomId: { $in: roomIds },
             status: 'approved'
           });
+
           hotelObj.totalReviews = reviewCount;
 
-          // Count available rooms
           const availableRooms = await Room.countDocuments({
             hotelId: hotel._id,
             isActive: true,
             availability: true
           });
+
           hotelObj.availableRoomsCount = availableRooms;
         } else {
           hotelObj.totalReviews = 0;
           hotelObj.availableRoomsCount = 0;
         }
-        
+
         return hotelObj;
       })
     );
 
-    // Get total count
     const total = await Hotel.countDocuments(query);
 
     res.status(200).json({
@@ -134,13 +129,13 @@ exports.getHotels = async (req, res) => {
   }
 };
 
+
 // @desc    Get single hotel
 // @route   GET /api/hotels/:id
 // @access  Public
 exports.getHotel = async (req, res) => {
   try {
-    const hotel = await Hotel.findById(req.params.id)
-      .populate('rooms');
+    const hotel = await Hotel.findById(req.params.id).populate('rooms');
 
     if (!hotel) {
       return res.status(404).json({
@@ -151,27 +146,23 @@ exports.getHotel = async (req, res) => {
 
     const hotelObj = hotel.toObject();
 
-    // Get reviews for all rooms of this hotel
     if (hotelObj.rooms && hotelObj.rooms.length > 0) {
-      const roomIds = hotelObj.rooms.map(room => room._id || room);
-      
-      // Get review count
-      hotelObj.totalReviews = await Review.countDocuments({ 
+      const roomIds = hotelObj.rooms.map((room) => room._id || room);
+
+      hotelObj.totalReviews = await Review.countDocuments({
         roomId: { $in: roomIds },
         status: 'approved'
       });
 
-      // Get recent reviews
       hotelObj.reviews = await Review.find({
         roomId: { $in: roomIds },
         status: 'approved'
       })
-      .populate('userId', 'name avatar')
-      .populate('roomId', 'name')
-      .sort('-createdAt')
-      .limit(10);
+        .populate('userId', 'name avatar')
+        .populate('roomId', 'name')
+        .sort('-createdAt')
+        .limit(10);
 
-      // Count available rooms
       hotelObj.availableRoomsCount = await Room.countDocuments({
         hotelId: hotel._id,
         isActive: true,
@@ -196,6 +187,7 @@ exports.getHotel = async (req, res) => {
   }
 };
 
+
 // @desc    Create hotel
 // @route   POST /api/hotels
 // @access  Private/Admin
@@ -217,6 +209,7 @@ exports.createHotel = async (req, res) => {
   }
 };
 
+
 // @desc    Update hotel
 // @route   PUT /api/hotels/:id
 // @access  Private/Admin
@@ -231,14 +224,10 @@ exports.updateHotel = async (req, res) => {
       });
     }
 
-    hotel = await Hotel.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true
-      }
-    );
+    hotel = await Hotel.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true
+    });
 
     res.status(200).json({
       success: true,
@@ -253,6 +242,7 @@ exports.updateHotel = async (req, res) => {
     });
   }
 };
+
 
 // @desc    Delete hotel
 // @route   DELETE /api/hotels/:id
@@ -284,39 +274,55 @@ exports.deleteHotel = async (req, res) => {
   }
 };
 
+
+// ----------------------------------------------------------------------
+// ⭐ NEW — FIXED — Geospatial Nearby Search
+// ----------------------------------------------------------------------
+
 // @desc    Get nearby hotels
 // @route   GET /api/hotels/nearby
 // @access  Public
 exports.getNearbyHotels = async (req, res) => {
   try {
-    const { longitude, latitude, maxDistance = 10000 } = req.query;
+    const { latitude, longitude, maxDistance = 10000 } = req.query;
 
-    if (!longitude || !latitude) {
+    if (!latitude || !longitude) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide longitude and latitude'
+        message: 'Please provide latitude and longitude'
       });
     }
 
-    if (!validateCoordinates(longitude, latitude)) {
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+    const distance = parseFloat(maxDistance);
+
+    if (isNaN(lat) || isNaN(lon) || isNaN(distance)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid coordinates'
+        message: 'Invalid coordinates or distance'
       });
     }
 
-    const hotels = await findNearbyHotels(
-      Hotel,
-      Number(longitude),
-      Number(latitude),
-      Number(maxDistance)
-    );
+    const hotels = await Hotel.find({
+      isActive: true,
+      location: {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [lon, lat]
+          },
+          $maxDistance: distance
+        }
+      }
+    });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       count: hotels.length,
       data: hotels
     });
+
   } catch (error) {
     console.error('Get nearby hotels error:', error);
     res.status(500).json({
@@ -325,4 +331,3 @@ exports.getNearbyHotels = async (req, res) => {
     });
   }
 };
-

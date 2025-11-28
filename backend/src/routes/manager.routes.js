@@ -1,47 +1,43 @@
 const express = require('express');
 const router = express.Router();
+
 const {
   getDashboard,
   getRevenue,
   getAnalytics,
-  getUsers,
-  deleteUser,
-  updateUserRole,
   getBookings,
   updateBookingStatus,
   cancelBooking,
   getReviews,
-  deleteReview,
-  createUser,
-  getHotels   
-} = require('../controllers/admin.controller');
+  deleteReview
+} = require('../controllers/manager.controller');
+
 const { protect } = require('../middlewares/auth.middleware');
-const { isAdmin } = require('../middlewares/role.middleware');
+const { isManager } = require('../middlewares/role.middleware');
 
-// All routes are protected and admin only
+// ===============================
+// ALL MANAGER ROUTES ARE PROTECTED
+// ===============================
 router.use(protect);
-router.use(isAdmin);
+router.use(isManager);
 
-// Dashboard & Analytics
+// ===============================
+// DASHBOARD + ANALYTICS
+// ===============================
 router.get('/dashboard', getDashboard);
 router.get('/revenue', getRevenue);
 router.get('/analytics', getAnalytics);
 
-// Hotels
-router.get('/hotels', getHotels);   
-
-// Users
-router.get('/users', getUsers);
-router.post('/users', createUser);
-router.put('/users/:id/role', updateUserRole);
-router.delete('/users/:id', deleteUser);
-
-// Bookings
+// ===============================
+// BOOKING MANAGEMENT
+// ===============================
 router.get('/bookings', getBookings);
 router.put('/bookings/:id/status', updateBookingStatus);
 router.put('/bookings/:id/cancel', cancelBooking);
 
-// Reviews
+// ===============================
+// REVIEW MANAGEMENT
+// ===============================
 router.get('/reviews', getReviews);
 router.delete('/reviews/:id', deleteReview);
 
