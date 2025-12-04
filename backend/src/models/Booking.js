@@ -41,16 +41,56 @@ const bookingSchema = new mongoose.Schema({
     min: 0,
     default: 0
   },
+
   paymentStatus: {
     type: String,
     enum: ['pending', 'paid', 'cancelled', 'refunded'],
     default: 'pending'
   },
+
+  // ✅ totalPrice: có thể hiểu là tổng tiền hiện tại (nên cho = finalTotal khi lưu)
   totalPrice: {
     type: Number,
     required: [true, 'Total price is required'],
     min: 0
   },
+
+  // 🔽 THÔNG TIN KHUYẾN MÃI (MỚI THÊM)
+  // Giá gốc trước khi giảm
+  originalTotal: {
+    type: Number,
+    required: [true, 'Original total is required'],
+    min: 0
+  },
+
+  // Số tiền được giảm
+  discountAmount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+
+  // Tổng tiền khách phải trả sau khi áp dụng khuyến mãi
+  finalTotal: {
+    type: Number,
+    required: [true, 'Final total is required'],
+    min: 0
+  },
+
+  // Tham chiếu tới bảng Promotion (nếu có dùng mã giảm giá / khuyến mãi)
+  promotionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Promotion',
+    default: null
+  },
+
+  // Lưu lại mã khuyến mãi đã dùng (cho dễ xem lịch sử)
+  promotionCode: {
+    type: String,
+    default: null
+  },
+  // 🔼 HẾT PHẦN KHUYẾN MÃI
+
   paymentMethod: {
     type: String,
     enum: ['vnpay', 'cash', 'card'],
@@ -76,18 +116,18 @@ const bookingSchema = new mongoose.Schema({
     type: String
   },
 
-  // 🔧 SỬA Ở ĐÂY
+  // Trạng thái booking
   bookingStatus: {
     type: String,
     enum: [
-      'pending',      // ✅ thêm trạng thái chờ
+      'pending',      // ✅ chờ xác nhận
       'confirmed',
       'checked-in',
       'checked-out',
       'cancelled',
       'no-show'
     ],
-    default: 'pending' // ✅ default khớp với createBooking & FE
+    default: 'pending'
   },
 
   paymentDetails: {

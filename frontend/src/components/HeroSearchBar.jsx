@@ -16,6 +16,7 @@ import useSearchStore from '../store/useSearchStore';
 import toast from 'react-hot-toast';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import HeroPromoBar from '../components/HeroPromoBar';
 
 const HeroSearchBar = () => {
   const navigate = useNavigate();
@@ -217,7 +218,7 @@ const HeroSearchBar = () => {
   const guestSummary = `${searchData.rooms} phòng, ${searchData.adults} người lớn, ${searchData.children} trẻ em`;
 
   return (
-    <div className="relative max-w-6xl mx-auto px-3">
+    <div className="relative max-w-6xl mx-auto px-3 space-y-3">
       {/* Card tổng */}
       <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-[0_18px_45px_rgba(15,23,42,0.18)] p-5 md:p-8 border border-slate-100">
         {/* Tiêu đề + mô tả nhỏ */}
@@ -545,6 +546,9 @@ const HeroSearchBar = () => {
           </button>
         </form>
       </div>
+
+      {/* Thanh khuyến mãi bên dưới HeroSearch */}
+      <HeroPromoBar />
     </div>
   );
 };

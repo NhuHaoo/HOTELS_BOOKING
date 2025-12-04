@@ -1,5 +1,6 @@
 const Booking = require('../models/Booking');
 const Room = require('../models/Room');
+const Promotion = require('../models/promotion');
 const { sendBookingConfirmation, sendBookingCancellation } = require('../utils/email.utils');
 
 // ===== Helper: tính số ngày chênh lệch (làm tròn lên) =====
@@ -26,7 +27,12 @@ exports.createBooking = async (req, res) => {
       guestEmail,
       guestPhone,
       specialRequests,
-      paymentMethod
+      paymentMethod,
+
+      // 👇 các field khuyến mãi FE gửi lên (nếu có)
+      promotionId,
+      promotionCode,
+      discountAmount
     } = req.body;
 
     // Validate room exists
@@ -94,12 +100,30 @@ exports.createBooking = async (req, res) => {
       });
     }
 
-    // Calculate total price
+    // ================== TÍNH GIÁ & KHUYẾN MÃI ==================
     const numberOfNights = Math.ceil(
       (checkOutDate - checkInDate) / (1000 * 60 * 60 * 24)
     );
     const nightlyPrice = room.finalPrice || room.price;
-    const totalPrice = nightlyPrice * numberOfNights;
+
+    // Giá gốc trước khi giảm
+    const originalTotal = nightlyPrice * numberOfNights;
+
+    // Discount FE gửi lên (nếu đã apply mã trước đó)
+    let appliedDiscount = 0;
+    if (discountAmount && Number(discountAmount) > 0) {
+      appliedDiscount = Number(discountAmount);
+      if (appliedDiscount > originalTotal) {
+        appliedDiscount = originalTotal; // không cho giảm âm
+      }
+    }
+
+    // Tổng sau giảm
+    const finalTotal = originalTotal - appliedDiscount;
+
+    // Để không phá code cũ: totalPrice = finalTotal
+    const totalPrice = finalTotal;
+    // ================== HẾT PHẦN GIÁ & KHUYẾN MÃI ==================
 
     // Get cancellation and reschedule policies from hotel
     const cancellationPolicy = room.hotelId?.cancellationPolicy || {
@@ -126,13 +150,28 @@ exports.createBooking = async (req, res) => {
       guestEmail: guestEmail || req.user.email,
       guestPhone: guestPhone || req.user.phone,
       specialRequests,
-      totalPrice,
+
+      // 💰 GIÁ & KHUYẾN MÃI
+      totalPrice,            // giữ cho các chỗ cũ dùng được
+      originalTotal,         // giá gốc
+      discountAmount: appliedDiscount,
+      finalTotal,            // giá sau giảm
+      promotionId: promotionId || null,
+      promotionCode: promotionCode || null,
+
       paymentMethod: paymentMethod || 'vnpay',
       paymentStatus: 'pending',
       bookingStatus: 'pending', // 👈 cho khớp FE
       cancellationPolicy,
       reschedulePolicy
     });
+
+    // Nếu có dùng promotionId → tăng usedCount
+    if (promotionId) {
+      await Promotion.findByIdAndUpdate(promotionId, {
+        $inc: { usedCount: 1 }
+      });
+    }
 
     // Populate booking details
     await booking.populate('roomId hotelId userId');

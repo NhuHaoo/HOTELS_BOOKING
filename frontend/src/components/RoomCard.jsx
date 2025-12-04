@@ -31,7 +31,13 @@ const getRoomTypeLabel = (type) => {
   return types[type] || type;
 };
 
-const RoomCard = ({ room, onFavoriteChange, initialFavorited = false, showBadge = false }) => {
+const RoomCard = ({
+  room,
+  onFavoriteChange,
+  initialFavorited = false,
+  showBadge = false,
+  highlightCoupon, // 👈 nhận coupon từ SearchResult
+}) => {
   const { isAuthenticated } = useAuthStore();
   const [isFavorited, setIsFavorited] = useState(initialFavorited);
   const [isLoading, setIsLoading] = useState(false);
@@ -130,7 +136,7 @@ const RoomCard = ({ room, onFavoriteChange, initialFavorited = false, showBadge 
         <button
           onClick={handleFavoriteClick}
           disabled={isLoading}
-          className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all duration-300 z-10 group/fav"
+          className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all duration-300 z-20 group/fav"
         >
           {isFavorited ? (
             <FaHeart className="text-red-500 text-xl animate-pulse" />
@@ -139,9 +145,23 @@ const RoomCard = ({ room, onFavoriteChange, initialFavorited = false, showBadge 
           )}
         </button>
 
-        {/* Discount Badge */}
+        {/* 🔥 Coupon Badge (mã khuyến mãi) */}
+        {highlightCoupon && (
+          <div className="absolute top-4 left-4 z-20">
+            <div className="px-3 py-1.5 rounded-full bg-rose-500/95 text-white text-xs font-semibold shadow-lg flex items-center gap-1">
+              <FaFire className="text-[11px]" />
+              <span>Mã {highlightCoupon.code}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Discount Badge (đẩy xuống nếu có coupon) */}
         {room.discount > 0 && (
-          <div className="absolute top-4 left-4 bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg animate-pulse">
+          <div
+            className={`absolute ${
+              highlightCoupon ? 'top-14' : 'top-4'
+            } left-4 bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg animate-pulse z-10`}
+          >
             <span className="flex items-center gap-1">
               <FaFire />
               -{room.discount}%
@@ -149,9 +169,19 @@ const RoomCard = ({ room, onFavoriteChange, initialFavorited = false, showBadge 
           </div>
         )}
 
-        {/* Hot Badge */}
+        {/* Hot Badge (đẩy xuống thêm nếu có coupon/discount) */}
         {showBadge && (
-          <div className="absolute top-4 left-4 bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
+          <div
+            className={`absolute ${
+              highlightCoupon
+                ? room.discount > 0
+                  ? 'top-24'
+                  : 'top-14'
+                : room.discount > 0
+                ? 'top-14'
+                : 'top-4'
+            } left-4 bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg z-10`}
+          >
             <span className="flex items-center gap-1">
               <FaFire className="animate-pulse" />
               HOT

@@ -3,8 +3,27 @@ import { useQuery } from '@tanstack/react-query';
 import { roomAPI } from '../api/room.api';
 import { reviewAPI } from '../api/review.api';
 import { favoriteAPI } from '../api/favorite.api';
+import { promotionAPI } from '../api/promotion.api';
 import { formatPrice } from '../utils/formatPrice';
-import { FaStar, FaMapMarkerAlt, FaHeart, FaRegHeart, FaUsers, FaBed, FaExpand, FaPhone, FaEnvelope, FaClock, FaUser, FaChild, FaHotel, FaCheckCircle, FaExchangeAlt, FaCalendarAlt } from 'react-icons/fa';
+import {
+  FaStar,
+  FaMapMarkerAlt,
+  FaHeart,
+  FaRegHeart,
+  FaUsers,
+  FaBed,
+  FaExpand,
+  FaPhone,
+  FaEnvelope,
+  FaClock,
+  FaUser,
+  FaChild,
+  FaHotel,
+  FaCheckCircle,
+  FaExchangeAlt,
+  FaCalendarAlt,
+  FaTicketAlt,
+} from 'react-icons/fa';
 import Loading from '../components/Loading';
 import ReviewCard from '../components/ReviewCard';
 import WeatherWidget from '../components/WeatherWidget';
@@ -19,7 +38,7 @@ const RoomDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
-  const { setSelectedRoom, setDates } = useBookingStore();
+  const { setSelectedRoom } = useBookingStore();
   const [selectedImage, setSelectedImage] = useState(0);
   const [isFavorited, setIsFavorited] = useState(false);
 
@@ -42,21 +61,37 @@ const RoomDetail = () => {
     enabled: isAuthenticated && !!id,
   });
 
+  // Fetch active coupons (mã khuyến mãi đang dùng được)
+  const { data: couponRes } = useQuery({
+    queryKey: ['active-coupons'],
+    queryFn: () => promotionAPI.getAll(), // hoặc getActiveCoupons() nếu em đã tách route riêng
+  });
+
   const room = roomData?.data;
   const reviews = reviewsData?.data || [];
   const reviewStats = reviewsData?.stats;
 
+  // Chuẩn hoá danh sách coupon: backend có thể trả {success, data: [...]}
+  const coupons =
+    couponRes?.data?.data || // trường hợp Axios trả response => {data: {success, data: []}}
+    couponRes?.data || // trường hợp axiosClient unwrap
+    [];
+  const bestCoupon = coupons[0];
+
   // Fetch other rooms from same hotel
   const { data: otherRoomsData } = useQuery({
     queryKey: ['other-rooms', room?.hotelId?._id, id],
-    queryFn: () => roomAPI.getRoomsByHotel(room.hotelId._id, { excludeRoomId: id, limit: 3 }),
+    queryFn: () =>
+      roomAPI.getRoomsByHotel(room.hotelId._id, {
+        excludeRoomId: id,
+        limit: 3,
+      }),
     enabled: !!room?.hotelId?._id,
   });
 
   const otherRooms = otherRoomsData?.data || [];
 
   // Update favorite state when data loads
-  // axiosClient already unwraps response.data
   useEffect(() => {
     if (favoriteData?.isFavorited !== undefined) {
       setIsFavorited(favoriteData.isFavorited);
@@ -119,11 +154,17 @@ const RoomDetail = () => {
       <div className="container-custom py-8">
         {/* Breadcrumb */}
         <div className="text-sm text-gray-600 mb-6">
-          <span className="hover:text-primary cursor-pointer" onClick={() => navigate('/')}>
+          <span
+            className="hover:text-primary cursor-pointer"
+            onClick={() => navigate('/')}
+          >
             Trang chủ
           </span>
           <span className="mx-2">/</span>
-          <span className="hover:text-primary cursor-pointer" onClick={() => navigate('/search')}>
+          <span
+            className="hover:text-primary cursor-pointer"
+            onClick={() => navigate('/search')}
+          >
             Tìm kiếm
           </span>
           <span className="mx-2">/</span>
@@ -165,19 +206,27 @@ const RoomDetail = () => {
             <div className="card p-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">{room.name}</h1>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                    {room.name}
+                  </h1>
                   {room.hotelId && (
                     <div className="flex items-center text-gray-600 mb-2">
                       <FaMapMarkerAlt className="mr-2" />
-                      <span>{room.hotelId.name} - {room.hotelId.city}</span>
+                      <span>
+                        {room.hotelId.name} - {room.hotelId.city}
+                      </span>
                     </div>
                   )}
                   <div className="flex items-center space-x-4">
                     <div className="flex items-center bg-primary text-white px-3 py-1 rounded-lg">
                       <FaStar className="mr-1" />
-                      <span className="font-semibold">{room.rating?.toFixed(1) || 'N/A'}</span>
+                      <span className="font-semibold">
+                        {room.rating?.toFixed(1) || 'N/A'}
+                      </span>
                     </div>
-                    <span className="text-gray-600">({room.totalReviews || 0} đánh giá)</span>
+                    <span className="text-gray-600">
+                      ({room.totalReviews || 0} đánh giá)
+                    </span>
                   </div>
                 </div>
 
@@ -193,7 +242,9 @@ const RoomDetail = () => {
                 </button>
               </div>
 
-              <p className="text-gray-700 leading-relaxed">{room.description}</p>
+              <p className="text-gray-700 leading-relaxed">
+                {room.description}
+              </p>
 
               {/* Room Details */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t">
@@ -202,25 +253,33 @@ const RoomDetail = () => {
                     <div className="flex flex-col items-center text-center">
                       <FaUser className="text-primary text-2xl mb-2" />
                       <span className="text-sm text-gray-600">Người lớn</span>
-                      <span className="font-semibold">{room.maxAdults} người</span>
+                      <span className="font-semibold">
+                        {room.maxAdults} người
+                      </span>
                     </div>
                     <div className="flex flex-col items-center text-center">
                       <FaChild className="text-primary text-2xl mb-2" />
                       <span className="text-sm text-gray-600">Trẻ em</span>
-                      <span className="font-semibold">{room.maxChildren || 0} trẻ</span>
+                      <span className="font-semibold">
+                        {room.maxChildren || 0} trẻ
+                      </span>
                     </div>
                   </>
                 ) : (
                   <div className="flex flex-col items-center text-center">
                     <FaUsers className="text-primary text-2xl mb-2" />
                     <span className="text-sm text-gray-600">Số khách</span>
-                    <span className="font-semibold">{room.maxGuests} người</span>
+                    <span className="font-semibold">
+                      {room.maxGuests} người
+                    </span>
                   </div>
                 )}
                 <div className="flex flex-col items-center text-center">
                   <FaBed className="text-primary text-2xl mb-2" />
                   <span className="text-sm text-gray-600">Giường</span>
-                  <span className="font-semibold">{room.numberOfBeds} {room.bedType}</span>
+                  <span className="font-semibold">
+                    {room.numberOfBeds} {room.bedType}
+                  </span>
                 </div>
                 <div className="flex flex-col items-center text-center">
                   <FaExpand className="text-primary text-2xl mb-2" />
@@ -230,22 +289,26 @@ const RoomDetail = () => {
                 <div className="flex flex-col items-center text-center">
                   <span className="text-primary text-2xl mb-2">🏨</span>
                   <span className="text-sm text-gray-600">Loại phòng</span>
-                  <span className="font-semibold capitalize">{room.roomType}</span>
+                  <span className="font-semibold capitalize">
+                    {room.roomType}
+                  </span>
                 </div>
               </div>
 
               {/* Available Rooms Count */}
               {room.availableRoomsCount !== undefined && (
                 <div className="mt-4 pt-4 border-t">
-                  <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium ${
-                    room.availableRoomsCount > 0 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-red-100 text-red-700'
-                  }`}>
+                  <div
+                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium ${
+                      room.availableRoomsCount > 0
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-red-100 text-red-700'
+                    }`}
+                  >
                     <FaCheckCircle />
                     <span>
-                      {room.availableRoomsCount > 0 
-                        ? `Còn ${room.availableRoomsCount} phòng trống` 
+                      {room.availableRoomsCount > 0
+                        ? `Còn ${room.availableRoomsCount} phòng trống`
                         : 'Hết phòng'}
                     </span>
                   </div>
@@ -260,39 +323,58 @@ const RoomDetail = () => {
                 <div className="space-y-4">
                   <div>
                     <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-semibold text-lg">{room.hotelId.name}</h3>
+                      <h3 className="font-semibold text-lg">
+                        {room.hotelId.name}
+                      </h3>
                       {room.hotelId.hotelType && (
                         <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold">
                           <FaHotel />
-                          {room.hotelId.hotelType === 'hotel' ? 'Khách sạn' :
-                           room.hotelId.hotelType === 'resort' ? 'Resort' :
-                           room.hotelId.hotelType === 'apartment' ? 'Căn hộ' :
-                           room.hotelId.hotelType === 'villa' ? 'Villa' :
-                           room.hotelId.hotelType === 'hostel' ? 'Hostel' :
-                           room.hotelId.hotelType === 'motel' ? 'Motel' :
-                           room.hotelId.hotelType}
+                          {room.hotelId.hotelType === 'hotel'
+                            ? 'Khách sạn'
+                            : room.hotelId.hotelType === 'resort'
+                            ? 'Resort'
+                            : room.hotelId.hotelType === 'apartment'
+                            ? 'Căn hộ'
+                            : room.hotelId.hotelType === 'villa'
+                            ? 'Villa'
+                            : room.hotelId.hotelType === 'hostel'
+                            ? 'Hostel'
+                            : room.hotelId.hotelType === 'motel'
+                            ? 'Motel'
+                            : room.hotelId.hotelType}
                         </span>
                       )}
                       {room.hotelId.starRating && (
                         <div className="flex items-center gap-1">
                           {[...Array(room.hotelId.starRating)].map((_, i) => (
-                            <FaStar key={i} className="text-yellow-400 text-sm" />
+                            <FaStar
+                              key={i}
+                              className="text-yellow-400 text-sm"
+                            />
                           ))}
                         </div>
                       )}
                     </div>
                     <div className="flex items-center text-gray-600 mb-2">
                       <FaMapMarkerAlt className="mr-2" />
-                      <span>{room.hotelId.address}, {room.hotelId.city}</span>
+                      <span>
+                        {room.hotelId.address}, {room.hotelId.city}
+                      </span>
                     </div>
                     {room.hotelId.rating && (
                       <div className="flex items-center gap-2 mb-2">
                         <div className="flex items-center bg-primary text-white px-3 py-1 rounded-lg">
                           <FaStar className="mr-1" />
-                          <span className="font-semibold">{room.hotelId.rating.toFixed(1)}</span>
+                          <span className="font-semibold">
+                            {room.hotelId.rating.toFixed(1)}
+                          </span>
                         </div>
                         <span className="text-gray-600">
-                          ({room.hotelReviewsCount || room.hotelId.totalReviews || 0} đánh giá)
+                          (
+                          {room.hotelReviewsCount ||
+                            room.hotelId.totalReviews ||
+                            0}{' '}
+                          đánh giá)
                         </span>
                       </div>
                     )}
@@ -302,7 +384,9 @@ const RoomDetail = () => {
                   {room.hotelId.introduction && (
                     <div className="pt-4 border-t">
                       <h4 className="font-semibold mb-2">Giới thiệu khách sạn</h4>
-                      <p className="text-gray-700 leading-relaxed">{room.hotelId.introduction}</p>
+                      <p className="text-gray-700 leading-relaxed">
+                        {room.hotelId.introduction}
+                      </p>
                     </div>
                   )}
 
@@ -310,7 +394,9 @@ const RoomDetail = () => {
                   {room.hotelId.description && (
                     <div className="pt-4 border-t">
                       <h4 className="font-semibold mb-2">Mô tả</h4>
-                      <p className="text-gray-700 leading-relaxed">{room.hotelId.description}</p>
+                      <p className="text-gray-700 leading-relaxed">
+                        {room.hotelId.description}
+                      </p>
                     </div>
                   )}
 
@@ -320,7 +406,10 @@ const RoomDetail = () => {
                         <FaPhone className="text-primary" />
                         <div>
                           <div className="text-xs text-gray-500">Điện thoại</div>
-                          <a href={`tel:${room.hotelId.phone}`} className="font-semibold hover:text-primary">
+                          <a
+                            href={`tel:${room.hotelId.phone}`}
+                            className="font-semibold hover:text-primary"
+                          >
                             {room.hotelId.phone}
                           </a>
                         </div>
@@ -332,7 +421,10 @@ const RoomDetail = () => {
                         <FaEnvelope className="text-primary" />
                         <div>
                           <div className="text-xs text-gray-500">Email</div>
-                          <a href={`mailto:${room.hotelId.email}`} className="font-semibold hover:text-primary">
+                          <a
+                            href={`mailto:${room.hotelId.email}`}
+                            className="font-semibold hover:text-primary"
+                          >
                             {room.hotelId.email}
                           </a>
                         </div>
@@ -343,8 +435,12 @@ const RoomDetail = () => {
                       <div className="flex items-center space-x-2">
                         <FaClock className="text-primary" />
                         <div>
-                          <div className="text-xs text-gray-500">Giờ nhận phòng</div>
-                          <span className="font-semibold">{room.hotelId.checkInTime}</span>
+                          <div className="text-xs text-gray-500">
+                            Giờ nhận phòng
+                          </div>
+                          <span className="font-semibold">
+                            {room.hotelId.checkInTime}
+                          </span>
                         </div>
                       </div>
                     )}
@@ -353,27 +449,37 @@ const RoomDetail = () => {
                       <div className="flex items-center space-x-2">
                         <FaClock className="text-primary" />
                         <div>
-                          <div className="text-xs text-gray-500">Giờ trả phòng</div>
-                          <span className="font-semibold">{room.hotelId.checkOutTime}</span>
+                          <div className="text-xs text-gray-500">
+                            Giờ trả phòng
+                          </div>
+                          <span className="font-semibold">
+                            {room.hotelId.checkOutTime}
+                          </span>
                         </div>
                       </div>
                     )}
                   </div>
 
                   {/* Hotel Amenities */}
-                  {room.hotelId.amenities && room.hotelId.amenities.length > 0 && (
-                    <div className="pt-4 border-t">
-                      <h4 className="font-semibold mb-3">Tiện nghi khách sạn</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {room.hotelId.amenities.map((amenity, index) => (
-                          <div key={index} className="flex items-center space-x-2 text-sm">
-                            <span className="text-primary">✓</span>
-                            <span className="capitalize">{amenity}</span>
-                          </div>
-                        ))}
+                  {room.hotelId.amenities &&
+                    room.hotelId.amenities.length > 0 && (
+                      <div className="pt-4 border-t">
+                        <h4 className="font-semibold mb-3">
+                          Tiện nghi khách sạn
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {room.hotelId.amenities.map((amenity, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center space-x-2 text-sm"
+                            >
+                              <span className="text-primary">✓</span>
+                              <span className="capitalize">{amenity}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   {/* Cancellation & Reschedule Policy */}
                   {room.hotelId.cancellationPolicy && (
@@ -383,11 +489,17 @@ const RoomDetail = () => {
                         Chính sách đổi trả
                       </h4>
                       <div className="space-y-2 text-sm">
-                        {room.hotelId.cancellationPolicy.freeCancellationDays > 0 && (
+                        {room.hotelId.cancellationPolicy
+                          .freeCancellationDays > 0 && (
                           <div className="flex items-center gap-2 text-green-700">
                             <FaCheckCircle />
                             <span>
-                              Hủy miễn phí trước {room.hotelId.cancellationPolicy.freeCancellationDays} ngày
+                              Hủy miễn phí trước{' '}
+                              {
+                                room.hotelId.cancellationPolicy
+                                  .freeCancellationDays
+                              }{' '}
+                              ngày
                             </span>
                           </div>
                         )}
@@ -402,9 +514,15 @@ const RoomDetail = () => {
                             <span>Không hoàn tiền</span>
                           </div>
                         )}
-                        {room.hotelId.cancellationPolicy.cancellationFee > 0 && (
+                        {room.hotelId.cancellationPolicy.cancellationFee >
+                          0 && (
                           <div className="text-gray-700">
-                            Phí hủy: {room.hotelId.cancellationPolicy.cancellationFee}%
+                            Phí hủy:{' '}
+                            {
+                              room.hotelId.cancellationPolicy
+                                .cancellationFee
+                            }
+                            %
                           </div>
                         )}
                       </div>
@@ -441,9 +559,10 @@ const RoomDetail = () => {
                 />
                 <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                   <p className="text-sm text-gray-700">
-                    <strong>Địa chỉ:</strong> {room.hotelId.address}, {room.hotelId.city}
+                    <strong>Địa chỉ:</strong> {room.hotelId.address},{' '}
+                    {room.hotelId.city}
                   </p>
-                  <a 
+                  <a
                     href={`https://www.google.com/maps/dir/?api=1&destination=${room.hotelId.location.coordinates[1]},${room.hotelId.location.coordinates[0]}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -458,9 +577,11 @@ const RoomDetail = () => {
             {/* Weather */}
             {room.hotelId && (
               <div className="card p-6">
-                <h2 className="text-xl font-bold mb-4">🌤️ Thời tiết tại {room.hotelId.city}</h2>
-                <WeatherWidget 
-                  city={room.hotelId.city} 
+                <h2 className="text-xl font-bold mb-4">
+                  🌤️ Thời tiết tại {room.hotelId.city}
+                </h2>
+                <WeatherWidget
+                  city={room.hotelId.city}
                   coordinates={room.hotelId.location?.coordinates}
                 />
               </div>
@@ -469,7 +590,9 @@ const RoomDetail = () => {
             {/* Other Rooms at This Hotel */}
             {otherRooms.length > 0 && (
               <div className="card p-6">
-                <h2 className="text-xl font-bold mb-4">Các phòng khác tại {room.hotelId?.name}</h2>
+                <h2 className="text-xl font-bold mb-4">
+                  Các phòng khác tại {room.hotelId?.name}
+                </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {otherRooms.map((otherRoom) => (
                     <RoomCard key={otherRoom._id} room={otherRoom} />
@@ -480,8 +603,10 @@ const RoomDetail = () => {
 
             {/* Reviews */}
             <div className="card p-6">
-              <h2 className="text-xl font-bold mb-4">Đánh giá từ khách hàng</h2>
-              
+              <h2 className="text-xl font-bold mb-4">
+                Đánh giá từ khách hàng
+              </h2>
+
               {reviewStats && (
                 <div className="bg-gray-50 rounded-lg p-4 mb-6">
                   <div className="flex items-center space-x-4">
@@ -495,13 +620,20 @@ const RoomDetail = () => {
                     </div>
                     <div className="flex-1 space-y-2">
                       {[5, 4, 3, 2, 1].map((star) => (
-                        <div key={star} className="flex items-center space-x-2">
+                        <div
+                          key={star}
+                          className="flex items-center space-x-2"
+                        >
                           <span className="text-sm w-12">{star} sao</span>
                           <div className="flex-1 bg-gray-200 rounded-full h-2">
                             <div
                               className="bg-accent h-2 rounded-full"
                               style={{
-                                width: `${(reviewStats[`rating${star}`] / reviewStats.totalReviews) * 100}%`,
+                                width: `${
+                                  (reviewStats[`rating${star}`] /
+                                    reviewStats.totalReviews) *
+                                  100
+                                }%`,
                               }}
                             ></div>
                           </div>
@@ -521,7 +653,9 @@ const RoomDetail = () => {
                     <ReviewCard key={review._id} review={review} />
                   ))
                 ) : (
-                  <p className="text-center text-gray-600 py-8">Chưa có đánh giá nào</p>
+                  <p className="text-center text-gray-600 py-8">
+                    Chưa có đánh giá nào
+                  </p>
                 )}
               </div>
             </div>
@@ -533,7 +667,9 @@ const RoomDetail = () => {
               <div className="mb-6">
                 {room.discount > 0 && (
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-500 line-through">{formatPrice(room.price)}</span>
+                    <span className="text-gray-500 line-through">
+                      {formatPrice(room.price)}
+                    </span>
                     <span className="bg-red-500 text-white px-2 py-1 rounded text-sm font-semibold">
                       -{room.discount}%
                     </span>
@@ -547,17 +683,65 @@ const RoomDetail = () => {
                 </div>
               </div>
 
+              {/* Gợi ý mã khuyến mãi */}
+              {bestCoupon && (
+                <div className="mb-4 p-4 rounded-lg bg-green-50 border border-green-200 text-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FaTicketAlt className="text-green-600" />
+                    <span className="font-semibold text-green-800">
+                      Mã khuyến mãi hiện có
+                    </span>
+                  </div>
+                  <div className="mb-2">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-dashed border-green-400 font-mono text-xs tracking-wide text-green-800">
+                      {bestCoupon.code}
+                    </span>
+                  </div>
+                  <p className="text-green-700">
+                    {bestCoupon.discountType === 'percent'
+                      ? `Giảm ${bestCoupon.discountValue}% cho đơn từ ${formatPrice(
+                          bestCoupon.minOrderAmount || 0
+                        )}`
+                      : `Giảm ${formatPrice(
+                          bestCoupon.discountValue
+                        )} cho đơn từ ${formatPrice(
+                          bestCoupon.minOrderAmount || 0
+                        )}`}
+                  </p>
+                  {bestCoupon.endDate && (
+                    <p className="mt-1 text-xs text-green-600">
+                      HSD:{' '}
+                      {new Date(bestCoupon.endDate).toLocaleDateString(
+                        'vi-VN'
+                      )}
+                    </p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-600">
+                    * Nhập mã ở bước thanh toán để áp dụng.
+                  </p>
+                </div>
+              )}
+
               {room.availability ? (
                 <>
-                  <button onClick={handleBookNow} className="w-full btn btn-primary py-3 mb-4">
+                  <button
+                    onClick={handleBookNow}
+                    className="w-full btn btn-primary py-3 mb-4"
+                  >
                     Đặt phòng ngay
                   </button>
                   {room.hotelId?.cancellationPolicy && (
                     <div className="text-sm text-gray-600 text-center space-y-1">
-                      {room.hotelId.cancellationPolicy.freeCancellationDays > 0 && (
+                      {room.hotelId.cancellationPolicy
+                        .freeCancellationDays > 0 && (
                         <p className="flex items-center justify-center gap-1">
                           <FaCheckCircle className="text-green-500" />
-                          Hủy miễn phí trước {room.hotelId.cancellationPolicy.freeCancellationDays} ngày
+                          Hủy miễn phí trước{' '}
+                          {
+                            room.hotelId.cancellationPolicy
+                              .freeCancellationDays
+                          }{' '}
+                          ngày
                         </p>
                       )}
                       {room.hotelId.cancellationPolicy.refundable && (
@@ -583,7 +767,8 @@ const RoomDetail = () => {
                     <span>Ngày trống ({room.availableDates.length} ngày)</span>
                   </div>
                   <div className="text-xs text-gray-600">
-                    Có sẵn từ {room.availableDates[0]} đến {room.availableDates[room.availableDates.length - 1]}
+                    Có sẵn từ {room.availableDates[0]} đến{' '}
+                    {room.availableDates[room.availableDates.length - 1]}
                   </div>
                 </div>
               )}
@@ -591,7 +776,9 @@ const RoomDetail = () => {
               <div className="mt-6 pt-6 border-t space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Giá phòng</span>
-                  <span className="font-semibold">{formatPrice(room.finalPrice || room.price)}</span>
+                  <span className="font-semibold">
+                    {formatPrice(room.finalPrice || room.price)}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Phí dịch vụ</span>
@@ -599,7 +786,9 @@ const RoomDetail = () => {
                 </div>
                 <div className="flex justify-between pt-3 border-t font-semibold text-lg">
                   <span>Tổng cộng</span>
-                  <span className="text-accent">{formatPrice(room.finalPrice || room.price)}</span>
+                  <span className="text-accent">
+                    {formatPrice(room.finalPrice || room.price)}
+                  </span>
                 </div>
               </div>
             </div>

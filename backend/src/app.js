@@ -16,6 +16,7 @@ const paymentRoutes = require('./routes/payment.routes');
 const aiRoutes = require('./routes/ai.routes');
 const uploadRoutes = require('./routes/upload.routes');
 const weatherRoutes = require('./routes/weather.routes');
+const promotionRoutes = require('./routes/promotion.routes');
 
 // ✅ Manager routes
 const managerRoutes = require('./routes/manager.routes');
@@ -86,6 +87,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/weather', weatherRoutes);
+app.use('/api/promotions', promotionRoutes);
 
 // ✅ Manager main (dashboard/bookings/reviews...)
 app.use('/api/manager', managerRoutes);

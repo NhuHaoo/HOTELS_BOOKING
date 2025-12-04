@@ -1,12 +1,14 @@
+// frontend/src/pages/SearchResult.jsx
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { roomAPI } from '../api/room.api';
+import { promotionAPI } from '../api/promotion.api';
 import RoomCard from '../components/RoomCard';
 import Loading from '../components/Loading';
 import Pagination from '../components/Pagination';
 import WeatherWidget from '../components/WeatherWidget';
-import { FaFilter, FaTimes, FaStar, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaFilter, FaTimes, FaStar, FaMapMarkerAlt, FaPercent } from 'react-icons/fa';
 import {
   ROOM_TYPES,
   AMENITIES,
@@ -54,6 +56,17 @@ const SearchResult = () => {
     sort: searchParams.get('sort') || '-rating',
     hotelId: initialHotelId,
   });
+
+  // 🔹 Lấy danh sách coupon đang hoạt động
+  const { data: activeCoupons } = useQuery({
+    queryKey: ['active-coupons'],
+    queryFn: () =>
+      promotionAPI.getActiveCoupons().then((res) => res.data?.data || res.data),
+  });
+
+  // 🔹 Chọn ra 1 coupon nổi bật để hiển thị
+  const highlightCoupon =
+    activeCoupons && activeCoupons.length > 0 ? activeCoupons[0] : null;
 
   // Fetch rooms
   const { data, isLoading, refetch } = useQuery({
@@ -692,7 +705,7 @@ const SearchResult = () => {
                             />
                           </div>
 
-                          {/* Thông tin khách sạn */}
+                          {/* Thông tin khách sạn + coupon */}
                           <div className="flex-1 flex flex-col md:flex-row gap-4">
                             <div className="flex-1">
                               <h3 className="text-lg font-semibold text-gray-900 mb-1">
@@ -749,6 +762,62 @@ const SearchResult = () => {
                                   </span>
                                 )}
                               </div>
+
+                              {/* 🔴 Thanh khuyến mãi lấy từ hệ thống của bạn */}
+                              {highlightCoupon && (
+                                <div className="mt-3">
+                                  <div className="inline-flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-2xl text-xs md:text-sm font-semibold shadow-md">
+                                    {/* Icon % bo tròn */}
+                                    <span className="flex items-center justify-center w-7 h-7 rounded-full bg-white/10 border border-white/40">
+                                      <FaPercent className="text-[11px]" />
+                                    </span>
+
+                                    {/* Nội dung từ coupon của bạn */}
+                                    <div className="flex flex-col md:flex-row md:items-center md:gap-1">
+                                      <span>
+                                        Mã{' '}
+                                        <span className="font-bold">
+                                          {highlightCoupon.code}
+                                        </span>
+                                      </span>
+
+                                      {highlightCoupon.title && (
+                                        <span className="md:inline hidden">
+                                          {' '}
+                                          – {highlightCoupon.title}
+                                        </span>
+                                      )}
+
+                                      {!highlightCoupon.title &&
+                                        highlightCoupon.description && (
+                                          <span className="md:inline hidden">
+                                            {' '}
+                                            – {highlightCoupon.description}
+                                          </span>
+                                        )}
+
+                                      {highlightCoupon.discountType && (
+                                        <span className="md:inline hidden">
+                                          {' '}
+                                          –{' '}
+                                          {highlightCoupon.discountType ===
+                                            'percent' &&
+                                            `Giảm ${
+                                              highlightCoupon.discountValue ||
+                                              0
+                                            }%`}
+                                          {highlightCoupon.discountType ===
+                                            'amount' &&
+                                            `Giảm ${(
+                                              highlightCoupon.discountValue ||
+                                              0
+                                            ).toLocaleString('vi-VN')}đ`}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
 
                             {/* Giá + nút */}
@@ -810,7 +879,11 @@ const SearchResult = () => {
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {data.data.map((room) => (
-                    <RoomCard key={room._id} room={room} />
+                    <RoomCard
+                      key={room._id}
+                      room={room}
+                      highlightCoupon={highlightCoupon}
+                    />
                   ))}
                 </div>
 
