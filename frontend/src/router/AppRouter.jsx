@@ -1,3 +1,4 @@
+// frontend/src/router/AppRouter.jsx
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
 import AdminLayout from '../layouts/AdminLayout';
@@ -38,6 +39,7 @@ import Hotels from '../pages/admin/Hotels';
 import Bookings from '../pages/admin/Bookings';
 import Users from '../pages/admin/Users';
 import Reviews from '../pages/admin/Reviews';
+import Promotions from '../pages/admin/Promotions'; // 👈 THÊM DÒNG NÀY
 
 const AppRouter = () => {
   return (
@@ -126,6 +128,7 @@ const AppRouter = () => {
           <Route path="bookings" element={<Bookings />} />
           <Route path="reviews" element={<Reviews />} />
           <Route path="users" element={<Users />} />
+          <Route path="promotions" element={<Promotions />} /> {/* 👈 TRANG KM */}
         </Route>
 
         {/* ===== MANAGER ROUTES ===== */}
@@ -141,7 +144,7 @@ const AppRouter = () => {
           <Route path="dashboard" element={<ManagerDashboard />} />
           <Route path="rooms" element={<ManagerRooms />} />
           <Route path="bookings" element={<ManagerBookings />} />
-          <Route path="reviews" element={<ManagerReviews />} /> 
+          <Route path="reviews" element={<ManagerReviews />} />
         </Route>
 
         {/* ===== 404 ===== */}

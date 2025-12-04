@@ -5,11 +5,13 @@ const axiosInstance = axios.create({
   withCredentials: true,
 });
 
+// Interceptors
 axiosInstance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
 
     if (token) {
+      // Sửa lỗi thiếu backtick
       config.headers.Authorization = `Bearer ${token}`;
     }
 

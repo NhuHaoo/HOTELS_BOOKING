@@ -1,5 +1,16 @@
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
-import { FaHome, FaHotel, FaClipboardList, FaStar, FaChartBar, FaUsers, FaSignOutAlt, FaBars, FaTimes } from 'react-icons/fa';
+import {
+  FaHome,
+  FaHotel,
+  FaClipboardList,
+  FaStar,
+  FaChartBar,
+  FaUsers,
+  FaSignOutAlt,
+  FaBars,
+  FaTimes,
+  FaTags,        // 👈 THÊM ICON KHUYẾN MÃI
+} from 'react-icons/fa';
 import useAuthStore from '../store/useAuthStore';
 import { useEffect, useState } from 'react';
 
@@ -26,6 +37,7 @@ const AdminLayout = () => {
     { path: '/admin/hotels', icon: FaHotel, label: 'Khách sạn' },
     { path: '/admin/rooms', icon: FaHome, label: 'Phòng' },
     { path: '/admin/bookings', icon: FaClipboardList, label: 'Đặt phòng' },
+    { path: '/admin/promotions', icon: FaTags, label: 'Khuyến mãi' }, // 👈 MỤC MỚI
     { path: '/admin/reviews', icon: FaStar, label: 'Đánh giá' },
     { path: '/admin/users', icon: FaUsers, label: 'Người dùng' },
   ];
@@ -40,9 +52,11 @@ const AdminLayout = () => {
   return (
     <div className="min-h-screen flex bg-gray-50">
       {/* Sidebar - Desktop */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-primary to-primary-dark text-white transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-primary to-primary-dark text-white transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-6 flex items-center justify-between border-b border-white/10">
@@ -78,7 +92,10 @@ const AdminLayout = () => {
                       : 'hover:bg-white/10 text-white'
                   }`}
                 >
-                  <item.icon className={active ? 'text-primary' : 'text-white/80'} size={20} />
+                  <item.icon
+                    className={active ? 'text-primary' : 'text-white/80'}
+                    size={20}
+                  />
                   <span className="font-medium">{item.label}</span>
                   {active && (
                     <div className="ml-auto w-2 h-2 bg-accent rounded-full animate-pulse" />
@@ -93,11 +110,15 @@ const AdminLayout = () => {
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mb-3">
               <div className="flex items-center space-x-3 mb-3">
                 <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                  <span className="text-lg font-bold">{user?.name?.charAt(0)}</span>
+                  <span className="text-lg font-bold">
+                    {user?.name?.charAt(0)}
+                  </span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate">{user?.name}</p>
-                  <p className="text-xs text-white/70 truncate">{user?.email}</p>
+                  <p className="text-xs text-white/70 truncate">
+                    {user?.email}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center justify-between text-xs">
@@ -165,4 +186,3 @@ const AdminLayout = () => {
 };
 
 export default AdminLayout;
-

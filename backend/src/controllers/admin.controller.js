@@ -1,4 +1,4 @@
-// QuanLyKhachSan/backend/src/controllers/admin.controller.js
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Room = require('../models/Room');
 const Hotel = require('../models/Hotel');
@@ -7,74 +7,138 @@ const Review = require('../models/Review');
 
 
 // ====================== DASHBOARD ======================
-// @desc    Get dashboard statistics
-// @route   GET /api/admin/dashboard
+// @desc    Get dashboard statistics (có lọc theo khách sạn + ngày)
+// @route   GET /api/admin/dashboard?hotelId=...&startDate=...&endDate=...
 // @access  Private/Admin
 exports.getDashboard = async (req, res) => {
   try {
-    // Total counts
-    const totalUsers = await User.countDocuments({ role: 'user' }); // chỉ đếm user thường
-    const totalRooms = await Room.countDocuments();
-    const totalHotels = await Hotel.countDocuments();
-    const totalBookings = await Booking.countDocuments();
+    const { hotelId, startDate, endDate } = req.query;
 
-    // Revenue statistics
+    // ==== Build điều kiện lọc cho Booking ====
+    const bookingMatch = {};
+
+    // Lọc theo khách sạn
+    if (hotelId && hotelId !== 'all') {
+      bookingMatch.hotelId = new mongoose.Types.ObjectId(hotelId);
+    }
+
+    // Lọc theo khoảng ngày (createdAt – ngày tạo booking)
+    if (startDate || endDate) {
+      bookingMatch.createdAt = {};
+      if (startDate) bookingMatch.createdAt.$gte = new Date(startDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        bookingMatch.createdAt.$lte = end;
+      }
+    }
+
+    // ==== Tổng quan theo filter ====
+
+    // Tổng booking (theo filter)
+    const totalBookings = await Booking.countDocuments(bookingMatch);
+
+    // Doanh thu + giá trị trung bình (chỉ tính booking paid)
     const revenueStats = await Booking.aggregate([
-      { $match: { paymentStatus: 'paid' } },
+      {
+        $match: {
+          ...bookingMatch,
+          paymentStatus: 'paid',
+        },
+      },
       {
         $group: {
           _id: null,
           totalRevenue: { $sum: '$totalPrice' },
-          averageBookingValue: { $avg: '$totalPrice' }
-        }
-      }
+          averageBookingValue: { $avg: '$totalPrice' },
+        },
+      },
     ]);
 
-    // Booking status breakdown
+    const totalRevenue = revenueStats[0]?.totalRevenue || 0;
+    const averageBookingValue = revenueStats[0]?.averageBookingValue || 0;
+
+    // Tổng khách sạn
+    let totalHotels;
+    if (hotelId && hotelId !== 'all') {
+      totalHotels = 1;
+    } else {
+      totalHotels = await Hotel.countDocuments();
+    }
+
+    // Tổng phòng (nếu lọc theo khách sạn thì chỉ đếm phòng của KS đó)
+    let totalRooms;
+    if (hotelId && hotelId !== 'all') {
+      totalRooms = await Room.countDocuments({ hotelId });
+    } else {
+      totalRooms = await Room.countDocuments();
+    }
+
+    // Tổng user: số user đã từng có booking trong filter
+    const usersByBooking = await Booking.aggregate([
+      { $match: bookingMatch },
+      {
+        $group: {
+          _id: '$userId',
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+    const totalUsers = usersByBooking[0]?.count || 0;
+
+    // Booking theo status (theo filter)
     const bookingsByStatus = await Booking.aggregate([
+      { $match: bookingMatch },
       {
         $group: {
           _id: '$bookingStatus',
-          count: { $sum: 1 }
-        }
-      }
+          count: { $sum: 1 },
+        },
+      },
     ]);
 
-    // Recent bookings
-    const recentBookings = await Booking.find()
+    // Đặt phòng gần đây (theo filter)
+    const recentBookings = await Booking.find(bookingMatch)
       .populate('userId', 'name email')
       .populate('roomId', 'name price')
       .populate('hotelId', 'name')
       .sort('-createdAt')
       .limit(10);
 
-    // Top rated rooms
-    const topRatedRooms = await Room.find({ isActive: true })
-      .populate('hotelId', 'name city')
-      .sort('-rating')
-      .limit(5);
+    // Doanh thu theo tháng (theo filter + 12 tháng gần nhất nếu không truyền ngày)
+    const createdAtRange =
+      startDate || endDate
+        ? {} // đã set trong bookingMatch.createdAt ở trên
+        : {
+            $gte: new Date(new Date().setMonth(new Date().getMonth() - 12)),
+          };
 
-    // Monthly revenue (last 12 months)
     const monthlyRevenue = await Booking.aggregate([
       {
         $match: {
+          ...bookingMatch,
           paymentStatus: 'paid',
-          createdAt: {
-            $gte: new Date(new Date().setMonth(new Date().getMonth() - 12))
-          }
-        }
+          ...(Object.keys(createdAtRange).length
+            ? { createdAt: createdAtRange }
+            : {}),
+        },
       },
       {
         $group: {
           _id: {
             year: { $year: '$createdAt' },
-            month: { $month: '$createdAt' }
+            month: { $month: '$createdAt' },
           },
           revenue: { $sum: '$totalPrice' },
-          bookings: { $sum: 1 }
-        }
+          bookings: { $sum: 1 },
+        },
       },
-      { $sort: { '_id.year': 1, '_id.month': 1 } }
+      { $sort: { '_id.year': 1, '_id.month': 1 } },
     ]);
 
     res.status(200).json({
@@ -85,20 +149,19 @@ exports.getDashboard = async (req, res) => {
           totalRooms,
           totalHotels,
           totalBookings,
-          totalRevenue: revenueStats[0]?.totalRevenue || 0,
-          averageBookingValue: revenueStats[0]?.averageBookingValue || 0
+          totalRevenue,
+          averageBookingValue,
         },
         bookingsByStatus,
         recentBookings,
-        topRatedRooms,
-        monthlyRevenue
-      }
+        monthlyRevenue,
+      },
     });
   } catch (error) {
     console.error('Get dashboard error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error',
     });
   }
 };

@@ -1,45 +1,77 @@
+// frontend/src/api/admin.api.js
 import axiosClient from './axiosClient';
 
 export const adminAPI = {
-  // Dashboard & Analytics
-  getDashboard: () => axiosClient.get('/admin/dashboard'),
+  // ======================
+  // DASHBOARD & ANALYTICS
+  // ======================
 
-  getRevenue: (params) => axiosClient.get('/admin/revenue', { params }),
+  // Dashboard – nhận params để lọc (hotelId, startDate, endDate, ...)
+  getDashboard: (params = {}) => {
+    return axiosClient.get('/admin/dashboard', { params });
+  },
 
-  getAnalytics: () => axiosClient.get('/admin/analytics'),
+  // Thống kê doanh thu (đã có sẵn)
+  getRevenue: (params = {}) => {
+    return axiosClient.get('/admin/revenue', { params });
+  },
+
+  // Analytics tổng hợp
+  getAnalytics: (params = {}) => {
+    return axiosClient.get('/admin/analytics', { params });
+  },
+
+  // Lấy danh sách khách sạn cho dropdown filter / tạo manager
+  getHotels: () => {
+    return axiosClient.get('/admin/hotels');
+  },
 
   // ======================
   // USERS
   // ======================
-  getUsers: (params) => axiosClient.get('/admin/users', { params }),
+
+  getUsers: (params) => {
+    return axiosClient.get('/admin/users', { params });
+  },
 
   // TẠO USER / MANAGER
-  createUser: (data) => axiosClient.post('/admin/users', data),
+  createUser: (data) => {
+    return axiosClient.post('/admin/users', data);
+  },
 
-  updateUserRole: (id, role) =>
-    axiosClient.put(`/admin/users/${id}/role`, { role }),
+  updateUserRole: (id, role) => {
+    return axiosClient.put(`/admin/users/${id}/role`, { role });
+  },
 
-  deleteUser: (id) => axiosClient.delete(`/admin/users/${id}`),
-
-  // ======================
-  // HOTELS (cần để chọn hotelId cho Manager)
-  // ======================
-  getHotels: () => axiosClient.get('/admin/hotels'),
+  deleteUser: (id) => {
+    return axiosClient.delete(`/admin/users/${id}`);
+  },
 
   // ======================
   // BOOKINGS
   // ======================
-  getBookings: (params) => axiosClient.get('/admin/bookings', { params }),
 
-  updateBookingStatus: (id, status) =>
-    axiosClient.put(`/admin/bookings/${id}/status`, { status }),
+  getBookings: (params) => {
+    return axiosClient.get('/admin/bookings', { params });
+  },
 
-  cancelBooking: (id) => axiosClient.put(`/admin/bookings/${id}/cancel`),
+  updateBookingStatus: (id, status) => {
+    return axiosClient.put(`/admin/bookings/${id}/status`, { status });
+  },
+
+  cancelBooking: (id) => {
+    return axiosClient.put(`/admin/bookings/${id}/cancel`);
+  },
 
   // ======================
   // REVIEWS
   // ======================
-  getReviews: (params) => axiosClient.get('/admin/reviews', { params }),
 
-  deleteReview: (id) => axiosClient.delete(`/admin/reviews/${id}`)
+  getReviews: (params) => {
+    return axiosClient.get('/admin/reviews', { params });
+  },
+
+  deleteReview: (id) => {
+    return axiosClient.delete(`/admin/reviews/${id}`);
+  },
 };

@@ -1,29 +1,29 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { adminAPI } from '../../api/admin.api';
 import Loading from '../../components/Loading';
-import { 
-  FaUsers, 
-  FaHotel, 
-  FaClipboardList, 
-  FaDollarSign, 
-  FaArrowUp, 
+import {
+  FaUsers,
+  FaHotel,
+  FaClipboardList,
+  FaDollarSign,
+  FaArrowUp,
   FaArrowDown,
-  FaStar,
   FaEye,
   FaClock,
   FaCheckCircle
 } from 'react-icons/fa';
 import { formatPrice } from '../../utils/formatPrice';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer, 
-  LineChart, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  LineChart,
   Line,
   PieChart,
   Pie,
@@ -32,9 +32,28 @@ import {
 import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
-  const { data: dashboardData, isLoading, isError, error } = useQuery({
-    queryKey: ['admin-dashboard'],
-    queryFn: () => adminAPI.getDashboard(),
+  // =============== FILTER STATE ===============
+  const [filters, setFilters] = useState({
+    hotelId: '',
+    startDate: '',
+    endDate: ''
+  });
+
+  // Lấy danh sách khách sạn để đổ vào select
+  const { data: hotelsData } = useQuery({
+    queryKey: ['admin-hotels'],
+    queryFn: () => adminAPI.getHotels()
+  });
+
+  // Lấy dữ liệu dashboard (có áp dụng filter)
+  const {
+    data: dashboardData,
+    isLoading,
+    isError,
+    error
+  } = useQuery({
+    queryKey: ['admin-dashboard', filters],
+    queryFn: () => adminAPI.getDashboard(filters),
   });
 
   if (isLoading) {
@@ -55,6 +74,7 @@ const Dashboard = () => {
   const overview = dashboardData?.data?.overview || {};
   const monthlyRevenue = dashboardData?.data?.monthlyRevenue || [];
   const recentBookings = dashboardData?.data?.recentBookings || [];
+  const statusData = dashboardData?.data?.bookingsByStatus || [];
 
   // Stats cards with gradients
   const statsCards = [
@@ -103,14 +123,6 @@ const Dashboard = () => {
     'Đặt phòng': item.bookings,
   }));
 
-  // Pie chart data for booking status
-  const bookingStatusData = [
-    { name: 'Đã xác nhận', value: overview.totalBookings * 0.4, color: '#10b981' },
-    { name: 'Đã nhận phòng', value: overview.totalBookings * 0.3, color: '#3b82f6' },
-    { name: 'Đã trả phòng', value: overview.totalBookings * 0.2, color: '#6b7280' },
-    { name: 'Đã hủy', value: overview.totalBookings * 0.1, color: '#ef4444' },
-  ];
-
   // Quick actions
   const quickActions = [
     { label: 'Thêm khách sạn', path: '/admin/hotels', icon: FaHotel, color: 'bg-blue-500' },
@@ -118,6 +130,38 @@ const Dashboard = () => {
     { label: 'Xem đặt phòng', path: '/admin/bookings', icon: FaEye, color: 'bg-purple-500' },
     { label: 'Quản lý user', path: '/admin/users', icon: FaUsers, color: 'bg-orange-500' },
   ];
+
+  // ====== Mapping trạng thái sang tiếng Việt ======
+  const statusLabel = {
+    paid: 'Đã thanh toán',
+    pending: 'Chờ thanh toán',
+    cancelled: 'Đã hủy',
+    refunded: 'Đã hoàn tiền',
+    confirmed: 'Đã xác nhận',
+    'no-show': 'Không đến',
+    'checked-in': 'Đã nhận phòng',
+    'checked-out': 'Đã trả phòng',
+  };
+
+  // Dữ liệu Pie chart dùng bookingsByStatus từ backend
+  const pieData = statusData.map((s) => ({
+    name: statusLabel[s._id] || s._id,
+    value: s.count,
+    color:
+      s._id === 'paid'
+        ? '#10b981'
+        : s._id === 'pending'
+        ? '#3b82f6'
+        : s._id === 'cancelled'
+        ? '#ef4444'
+        : s._id === 'refunded'
+        ? '#6366f1'
+        : s._id === 'checked-in'
+        ? '#f59e0b'
+        : s._id === 'checked-out'
+        ? '#6b7280'
+        : '#9ca3af',
+  }));
 
   return (
     <div className="space-y-6">
@@ -145,9 +189,11 @@ const Dashboard = () => {
                 <div className={`${stat.iconBg} bg-white/20 p-3 rounded-lg backdrop-blur-sm`}>
                   <stat.icon size={24} />
                 </div>
-                <div className={`flex items-center space-x-1 text-sm font-semibold ${
-                  stat.trendUp ? 'text-green-100' : 'text-red-100'
-                }`}>
+                <div
+                  className={`flex items-center space-x-1 text-sm font-semibold ${
+                    stat.trendUp ? 'text-green-100' : 'text-red-100'
+                  }`}
+                >
                   {stat.trendUp ? <FaArrowUp size={12} /> : <FaArrowDown size={12} />}
                   <span>{stat.trend}</span>
                 </div>
@@ -176,9 +222,78 @@ const Dashboard = () => {
               <div className={`${action.color} p-4 rounded-full mb-3 group-hover:scale-110 transition-transform`}>
                 <action.icon className="text-white" size={24} />
               </div>
-              <span className="text-sm font-medium text-gray-700 text-center">{action.label}</span>
+              <span className="text-sm font-medium text-gray-700 text-center">
+                {action.label}
+              </span>
             </Link>
           ))}
+        </div>
+      </div>
+
+      {/* ====== BỘ LỌC THỐNG KÊ (dưới Thao tác nhanh) ====== */}
+      <div className="card p-6 border border-gray-200 shadow-sm">
+        <h2 className="text-lg font-semibold mb-4 text-gray-800">Bộ lọc thống kê</h2>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Hotel filter */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Khách sạn</label>
+            <select
+              className="w-full border px-3 py-2 rounded"
+              value={filters.hotelId}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, hotelId: e.target.value }))
+              }
+            >
+              <option value="">Tất cả</option>
+              {hotelsData?.data?.map((hotel) => (
+                <option key={hotel._id} value={hotel._id}>
+                  {hotel.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Start date */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Từ ngày</label>
+            <input
+              type="date"
+              className="w-full border px-3 py-2 rounded"
+              value={filters.startDate}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, startDate: e.target.value }))
+              }
+            />
+          </div>
+
+          {/* End date */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Đến ngày</label>
+            <input
+              type="date"
+              className="w-full border px-3 py-2 rounded"
+              value={filters.endDate}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, endDate: e.target.value }))
+              }
+            />
+          </div>
+
+          {/* Clear filter */}
+          <div className="flex items-end">
+            <button
+              onClick={() =>
+                setFilters({
+                  hotelId: '',
+                  startDate: '',
+                  endDate: ''
+                })
+              }
+              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded text-sm font-medium"
+            >
+              Xóa lọc
+            </button>
+          </div>
         </div>
       </div>
 
@@ -195,12 +310,16 @@ const Dashboard = () => {
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="name" />
               <YAxis />
-              <Tooltip 
+              <Tooltip
                 formatter={(value, name) => {
                   if (name === 'Doanh thu') return formatPrice(value);
                   return value;
                 }}
-                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
+                contentStyle={{
+                  borderRadius: '8px',
+                  border: 'none',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                }}
               />
               <Legend />
               <Bar dataKey="Doanh thu" fill="#febb02" radius={[8, 8, 0, 0]} />
@@ -218,20 +337,24 @@ const Dashboard = () => {
           <ResponsiveContainer width="100%" height={350}>
             <PieChart>
               <Pie
-                data={bookingStatusData}
+                data={pieData}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                label={({ name, percent }) =>
+                  `${name}: ${(percent * 100).toFixed(0)}%`
+                }
                 outerRadius={100}
                 fill="#8884d8"
                 dataKey="value"
               >
-                {bookingStatusData.map((entry, index) => (
+                {pieData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip />
+              <Tooltip
+                formatter={(value, name) => [`${value} lượt`, name]}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -248,12 +371,18 @@ const Dashboard = () => {
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis dataKey="name" />
             <YAxis />
-            <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
+            <Tooltip
+              contentStyle={{
+                borderRadius: '8px',
+                border: 'none',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+              }}
+            />
             <Legend />
-            <Line 
-              type="monotone" 
-              dataKey="Đặt phòng" 
-              stroke="#003580" 
+            <Line
+              type="monotone"
+              dataKey="Đặt phòng"
+              stroke="#003580"
               strokeWidth={3}
               dot={{ fill: '#003580', r: 6 }}
               activeDot={{ r: 8 }}
@@ -269,7 +398,10 @@ const Dashboard = () => {
             <FaClipboardList className="mr-2 text-primary" />
             Đặt phòng gần đây
           </h2>
-          <Link to="/admin/bookings" className="text-primary hover:text-primary-dark text-sm font-semibold">
+          <Link
+            to="/admin/bookings"
+            className="text-primary hover:text-primary-dark text-sm font-semibold"
+          >
             Xem tất cả →
           </Link>
         </div>
@@ -277,11 +409,21 @@ const Dashboard = () => {
           <table className="w-full">
             <thead>
               <tr className="bg-gradient-to-r from-primary/10 to-primary/5">
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 rounded-tl-lg">Mã đặt phòng</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Khách hàng</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Phòng</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Tổng tiền</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 rounded-tr-lg">Trạng thái</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 rounded-tl-lg">
+                  Mã đặt phòng
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                  Khách hàng
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                  Phòng
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                  Tổng tiền
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 rounded-tr-lg">
+                  Trạng thái
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -291,35 +433,52 @@ const Dashboard = () => {
                     <div className="flex flex-col items-center">
                       <FaClipboardList className="text-5xl text-gray-300 mb-3" />
                       <p className="text-lg font-medium">Chưa có đặt phòng nào</p>
-                      <p className="text-sm">Các đặt phòng mới sẽ hiển thị ở đây</p>
+                      <p className="text-sm">
+                        Các đặt phòng mới sẽ hiển thị ở đây
+                      </p>
                     </div>
                   </td>
                 </tr>
               ) : (
                 recentBookings.slice(0, 10).map((booking) => (
-                  <tr key={booking._id} className="hover:bg-gray-50 transition-colors">
+                  <tr
+                    key={booking._id}
+                    className="hover:bg-gray-50 transition-colors"
+                  >
                     <td className="px-4 py-3 text-sm">
-                      <span className="font-mono font-semibold text-primary">{booking.bookingCode}</span>
+                      <span className="font-mono font-semibold text-primary">
+                        {booking.bookingCode}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <div className="flex items-center space-x-2">
                         <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary-dark rounded-full flex items-center justify-center text-white font-semibold text-xs">
                           {booking.userId?.name?.charAt(0)}
                         </div>
-                        <span className="font-medium">{booking.userId?.name}</span>
+                        <span className="font-medium">
+                          {booking.userId?.name}
+                        </span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{booking.roomId?.name}</td>
-                    <td className="px-4 py-3 text-sm">
-                      <span className="font-bold text-accent">{formatPrice(booking.totalPrice)}</span>
+                    <td className="px-4 py-3 text-sm text-gray-700">
+                      {booking.roomId?.name}
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                        booking.paymentStatus === 'paid' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {booking.paymentStatus === 'paid' ? '✓ Đã thanh toán' : '⏳ Chờ thanh toán'}
+                      <span className="font-bold text-accent">
+                        {formatPrice(booking.totalPrice)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <span
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                          booking.paymentStatus === 'paid'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}
+                      >
+                        {booking.paymentStatus === 'paid'
+                          ? '✓ Đã thanh toán'
+                          : '⏳ Chờ thanh toán'}
                       </span>
                     </td>
                   </tr>

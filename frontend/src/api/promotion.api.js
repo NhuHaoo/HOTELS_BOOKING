@@ -1,17 +1,59 @@
-// frontend/src/api/promotion.api.js
-import axios from 'axios';
+import axios from "axios";
+
+// Tự lấy token để gửi vào header
+const authHeaders = () => {
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 export const promotionAPI = {
-  // Áp dụng coupon
-  applyCoupon: ({ code, totalAmount }) =>
-    axios.post('/api/promotions/apply', { code, totalAmount }),
+  // APPLY COUPON (public)
+  applyCoupon: ({ code, totalAmount }) => {
+    return axios.post("/api/promotions/apply", { code, totalAmount });
+  },
 
-  // Lấy toàn bộ khuyến mãi (admin)
-  getAll: () => axios.get('/api/promotions'),
+  // GET ALL (admin)
+  getAll: () => {
+    return axios.get("/api/promotions", {
+      headers: authHeaders(),
+    });
+  },
 
-  // Public: các coupon đang hoạt động
-  getActiveCoupons: () => axios.get('/api/promotions/active-coupons'),
+  // GET ONE (admin)
+  getById: (id) => {
+    return axios.get(`/api/promotions/${id}`, {
+      headers: authHeaders(),
+    });
+  },
 
-  // Lấy khuyến mãi hot nhất
-  getHotPromotion: () => axios.get('/api/promotions/hot'),
+  // CREATE (admin)
+  create: (payload) => {
+    return axios.post("/api/promotions", payload, {
+      headers: authHeaders(),
+    });
+  },
+
+  // UPDATE (admin)
+  update: (id, payload) => {
+    return axios.put(`/api/promotions/${id}`, payload, {
+      headers: authHeaders(),
+    });
+  },
+
+  // DELETE (admin)
+  remove: (id) => {
+    return axios.delete(`/api/promotions/${id}`, {
+      headers: authHeaders(),
+    });
+  },
+
+  // ACTIVE COUPONS (public)
+  getActiveCoupons: () => {
+    return axios.get("/api/promotions/active-coupons");
+  },
+
+  // HOT PROMOTION (public)
+  getHotPromotion: () => {
+    return axios.get("/api/promotions/hot");
+  },
 };
