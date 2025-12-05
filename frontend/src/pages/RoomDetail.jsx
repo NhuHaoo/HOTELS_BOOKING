@@ -18,7 +18,6 @@ import {
   FaClock,
   FaUser,
   FaChild,
-  FaHotel,
   FaCheckCircle,
   FaExchangeAlt,
   FaCalendarAlt,
@@ -42,43 +41,37 @@ const RoomDetail = () => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [isFavorited, setIsFavorited] = useState(false);
 
-  // Fetch room details
   const { data: roomData, isLoading } = useQuery({
     queryKey: ['room', id],
     queryFn: () => roomAPI.getRoom(id),
   });
 
-  // Fetch reviews
   const { data: reviewsData } = useQuery({
     queryKey: ['reviews', id],
     queryFn: () => reviewAPI.getRoomReviews(id, { limit: 5 }),
   });
 
-  // Check favorite status
   const { data: favoriteData } = useQuery({
     queryKey: ['favorite-check', id],
     queryFn: () => favoriteAPI.checkFavorite(id),
     enabled: isAuthenticated && !!id,
   });
 
-  // Fetch active coupons (mã khuyến mãi đang dùng được)
   const { data: couponRes } = useQuery({
     queryKey: ['active-coupons'],
-    queryFn: () => promotionAPI.getAll(), // hoặc getActiveCoupons() nếu em đã tách route riêng
+    queryFn: () => promotionAPI.getAll(),
   });
 
   const room = roomData?.data;
   const reviews = reviewsData?.data || [];
   const reviewStats = reviewsData?.stats;
 
-  // Chuẩn hoá danh sách coupon: backend có thể trả {success, data: [...]}
   const coupons =
-    couponRes?.data?.data || // trường hợp Axios trả response => {data: {success, data: []}}
-    couponRes?.data || // trường hợp axiosClient unwrap
+    couponRes?.data?.data ||
+    couponRes?.data ||
     [];
   const bestCoupon = coupons[0];
 
-  // Fetch other rooms from same hotel
   const { data: otherRoomsData } = useQuery({
     queryKey: ['other-rooms', room?.hotelId?._id, id],
     queryFn: () =>
@@ -91,7 +84,6 @@ const RoomDetail = () => {
 
   const otherRooms = otherRoomsData?.data || [];
 
-  // Update favorite state when data loads
   useEffect(() => {
     if (favoriteData?.isFavorited !== undefined) {
       setIsFavorited(favoriteData.isFavorited);
@@ -115,7 +107,6 @@ const RoomDetail = () => {
       return;
     }
 
-    // Optimistic update
     const previousState = isFavorited;
     setIsFavorited(!isFavorited);
 
@@ -128,7 +119,6 @@ const RoomDetail = () => {
         toast.success('Đã thêm vào yêu thích');
       }
     } catch (error) {
-      // Revert on error
       setIsFavorited(previousState);
       toast.error(error.response?.data?.message || 'Có lỗi xảy ra');
     }
@@ -295,7 +285,6 @@ const RoomDetail = () => {
                 </div>
               </div>
 
-              {/* Available Rooms Count */}
               {room.availableRoomsCount !== undefined && (
                 <div className="mt-4 pt-4 border-t">
                   <div
@@ -316,223 +305,7 @@ const RoomDetail = () => {
               )}
             </div>
 
-            {/* Hotel Information */}
-            {room.hotelId && (
-              <div className="card p-6">
-                <h2 className="text-xl font-bold mb-4">Thông tin khách sạn</h2>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-semibold text-lg">
-                        {room.hotelId.name}
-                      </h3>
-                      {room.hotelId.hotelType && (
-                        <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold">
-                          <FaHotel />
-                          {room.hotelId.hotelType === 'hotel'
-                            ? 'Khách sạn'
-                            : room.hotelId.hotelType === 'resort'
-                            ? 'Resort'
-                            : room.hotelId.hotelType === 'apartment'
-                            ? 'Căn hộ'
-                            : room.hotelId.hotelType === 'villa'
-                            ? 'Villa'
-                            : room.hotelId.hotelType === 'hostel'
-                            ? 'Hostel'
-                            : room.hotelId.hotelType === 'motel'
-                            ? 'Motel'
-                            : room.hotelId.hotelType}
-                        </span>
-                      )}
-                      {room.hotelId.starRating && (
-                        <div className="flex items-center gap-1">
-                          {[...Array(room.hotelId.starRating)].map((_, i) => (
-                            <FaStar
-                              key={i}
-                              className="text-yellow-400 text-sm"
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center text-gray-600 mb-2">
-                      <FaMapMarkerAlt className="mr-2" />
-                      <span>
-                        {room.hotelId.address}, {room.hotelId.city}
-                      </span>
-                    </div>
-                    {room.hotelId.rating && (
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="flex items-center bg-primary text-white px-3 py-1 rounded-lg">
-                          <FaStar className="mr-1" />
-                          <span className="font-semibold">
-                            {room.hotelId.rating.toFixed(1)}
-                          </span>
-                        </div>
-                        <span className="text-gray-600">
-                          (
-                          {room.hotelReviewsCount ||
-                            room.hotelId.totalReviews ||
-                            0}{' '}
-                          đánh giá)
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Hotel Introduction */}
-                  {room.hotelId.introduction && (
-                    <div className="pt-4 border-t">
-                      <h4 className="font-semibold mb-2">Giới thiệu khách sạn</h4>
-                      <p className="text-gray-700 leading-relaxed">
-                        {room.hotelId.introduction}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Hotel Description */}
-                  {room.hotelId.description && (
-                    <div className="pt-4 border-t">
-                      <h4 className="font-semibold mb-2">Mô tả</h4>
-                      <p className="text-gray-700 leading-relaxed">
-                        {room.hotelId.description}
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-                    {room.hotelId.phone && (
-                      <div className="flex items-center space-x-2">
-                        <FaPhone className="text-primary" />
-                        <div>
-                          <div className="text-xs text-gray-500">Điện thoại</div>
-                          <a
-                            href={`tel:${room.hotelId.phone}`}
-                            className="font-semibold hover:text-primary"
-                          >
-                            {room.hotelId.phone}
-                          </a>
-                        </div>
-                      </div>
-                    )}
-
-                    {room.hotelId.email && (
-                      <div className="flex items-center space-x-2">
-                        <FaEnvelope className="text-primary" />
-                        <div>
-                          <div className="text-xs text-gray-500">Email</div>
-                          <a
-                            href={`mailto:${room.hotelId.email}`}
-                            className="font-semibold hover:text-primary"
-                          >
-                            {room.hotelId.email}
-                          </a>
-                        </div>
-                      </div>
-                    )}
-
-                    {room.hotelId.checkInTime && (
-                      <div className="flex items-center space-x-2">
-                        <FaClock className="text-primary" />
-                        <div>
-                          <div className="text-xs text-gray-500">
-                            Giờ nhận phòng
-                          </div>
-                          <span className="font-semibold">
-                            {room.hotelId.checkInTime}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {room.hotelId.checkOutTime && (
-                      <div className="flex items-center space-x-2">
-                        <FaClock className="text-primary" />
-                        <div>
-                          <div className="text-xs text-gray-500">
-                            Giờ trả phòng
-                          </div>
-                          <span className="font-semibold">
-                            {room.hotelId.checkOutTime}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Hotel Amenities */}
-                  {room.hotelId.amenities &&
-                    room.hotelId.amenities.length > 0 && (
-                      <div className="pt-4 border-t">
-                        <h4 className="font-semibold mb-3">
-                          Tiện nghi khách sạn
-                        </h4>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                          {room.hotelId.amenities.map((amenity, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center space-x-2 text-sm"
-                            >
-                              <span className="text-primary">✓</span>
-                              <span className="capitalize">{amenity}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                  {/* Cancellation & Reschedule Policy */}
-                  {room.hotelId.cancellationPolicy && (
-                    <div className="pt-4 border-t">
-                      <h4 className="font-semibold mb-3 flex items-center gap-2">
-                        <FaExchangeAlt className="text-primary" />
-                        Chính sách đổi trả
-                      </h4>
-                      <div className="space-y-2 text-sm">
-                        {room.hotelId.cancellationPolicy
-                          .freeCancellationDays > 0 && (
-                          <div className="flex items-center gap-2 text-green-700">
-                            <FaCheckCircle />
-                            <span>
-                              Hủy miễn phí trước{' '}
-                              {
-                                room.hotelId.cancellationPolicy
-                                  .freeCancellationDays
-                              }{' '}
-                              ngày
-                            </span>
-                          </div>
-                        )}
-                        {room.hotelId.cancellationPolicy.refundable ? (
-                          <div className="flex items-center gap-2 text-green-700">
-                            <FaCheckCircle />
-                            <span>Có thể hoàn tiền</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 text-red-700">
-                            <span>✗</span>
-                            <span>Không hoàn tiền</span>
-                          </div>
-                        )}
-                        {room.hotelId.cancellationPolicy.cancellationFee >
-                          0 && (
-                          <div className="text-gray-700">
-                            Phí hủy:{' '}
-                            {
-                              room.hotelId.cancellationPolicy
-                                .cancellationFee
-                            }
-                            %
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Amenities */}
+            {/* Tiện nghi phòng */}
             <div className="card p-6">
               <h2 className="text-xl font-bold mb-4">Tiện nghi phòng</h2>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -683,7 +456,6 @@ const RoomDetail = () => {
                 </div>
               </div>
 
-              {/* Gợi ý mã khuyến mãi */}
               {bestCoupon && (
                 <div className="mb-4 p-4 rounded-lg bg-green-50 border border-green-200 text-sm">
                   <div className="flex items-center gap-2 mb-2">
@@ -759,7 +531,6 @@ const RoomDetail = () => {
                 </div>
               )}
 
-              {/* Available Dates */}
               {room.availableDates && room.availableDates.length > 0 && (
                 <div className="mt-4 pt-4 border-t">
                   <div className="flex items-center gap-2 mb-2 text-sm font-semibold text-gray-700">

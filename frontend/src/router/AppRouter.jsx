@@ -23,6 +23,7 @@ import PaymentReturn from '../pages/PaymentReturn';
 import PaymentSuccess from '../pages/PaymentSuccess';
 import PaymentFailed from '../pages/PaymentFailed';
 import MockPayment from '../pages/MockPayment';
+import HotelRooms from '../pages/HotelRooms';
 
 // User Protected Pages
 import Booking from '../pages/Booking';
@@ -39,7 +40,7 @@ import Hotels from '../pages/admin/Hotels';
 import Bookings from '../pages/admin/Bookings';
 import Users from '../pages/admin/Users';
 import Reviews from '../pages/admin/Reviews';
-import Promotions from '../pages/admin/Promotions'; // 👈 THÊM DÒNG NÀY
+import Promotions from '../pages/admin/Promotions';
 
 const AppRouter = () => {
   return (
@@ -60,6 +61,7 @@ const AppRouter = () => {
           <Route path="/" element={<Home />} />
           <Route path="/search" element={<SearchResult />} />
           <Route path="/rooms/:id" element={<RoomDetail />} />
+          <Route path="/hotels/:hotelId/rooms" element={<HotelRooms />} />
 
           {/* ---- USER PROTECTED ROUTES ---- */}
           <Route
@@ -128,7 +130,7 @@ const AppRouter = () => {
           <Route path="bookings" element={<Bookings />} />
           <Route path="reviews" element={<Reviews />} />
           <Route path="users" element={<Users />} />
-          <Route path="promotions" element={<Promotions />} /> {/* 👈 TRANG KM */}
+          <Route path="promotions" element={<Promotions />} />
         </Route>
 
         {/* ===== MANAGER ROUTES ===== */}
