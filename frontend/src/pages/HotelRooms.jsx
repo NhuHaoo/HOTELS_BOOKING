@@ -7,6 +7,7 @@ import { hotelAPI } from "../api/hotel.api";
 import { roomAPI } from "../api/room.api";
 import Loading from "../components/Loading";
 import RoomCard from "../components/RoomCard";
+import Breadcrumb from "../components/Breadcrumb";
 import {
   FaMapMarkerAlt,
   FaStar,
@@ -104,8 +105,32 @@ const HotelRooms = () => {
   if (hotelError) return <p className="p-6">Không tải được thông tin khách sạn.</p>;
   if (roomsError) return <p className="p-6">Không tải được danh sách phòng.</p>;
 
+  // Tạo breadcrumb items
+  const breadcrumbItems = [
+    { label: 'Trang chủ', path: '/' },
+  ];
+
+  // Thêm thành phố nếu có
+  if (hotel?.city) {
+    breadcrumbItems.push({
+      label: hotel.city,
+      path: `/search?city=${encodeURIComponent(hotel.city)}`,
+    });
+  }
+
+  // Thêm tên khách sạn (item cuối cùng, không có path)
+  if (hotel?.name) {
+    breadcrumbItems.push({
+      label: hotel.name,
+      path: null, // Không click được
+    });
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20">
+      {/* Breadcrumb */}
+      <Breadcrumb items={breadcrumbItems} />
+
       <div className="container-custom py-8 space-y-6">
         {/* ========== GALLERY ẢNH KHÁCH SẠN ========== */}
         <div className="grid grid-cols-4 gap-2">

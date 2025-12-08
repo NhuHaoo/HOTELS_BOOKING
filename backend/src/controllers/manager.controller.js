@@ -503,3 +503,100 @@ exports.deleteReview = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
+/**
+ * ===================== HOTEL MANAGEMENT =====================
+ */
+
+// @desc    Get manager's hotel
+// @route   GET /api/manager/hotel
+// @access  Private/Manager
+exports.getHotel = async (req, res) => {
+  try {
+    const hotelId = getManagerHotelId(req, res);
+    if (!hotelId) return;
+
+    const hotel = await Hotel.findById(hotelId);
+
+    if (!hotel) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hotel not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: hotel
+    });
+  } catch (error) {
+    console.error('Manager get hotel error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// @desc    Update manager's hotel
+// @route   PUT /api/manager/hotel
+// @access  Private/Manager
+exports.updateHotel = async (req, res) => {
+  try {
+    const hotelId = getManagerHotelId(req, res);
+    if (!hotelId) return;
+
+    // Chỉ cho phép update các trường nhất định, không cho update hotelId, rating, totalReviews
+    const allowedFields = [
+      'name',
+      'description',
+      'introduction',
+      'address',
+      'city',
+      'phone',
+      'email',
+      'website',
+      'images',
+      'amenities',
+      'checkInTime',
+      'checkOutTime',
+      'cancellationPolicy',
+      'reschedulePolicy',
+      'location',
+      'hotelType',
+      'starRating'
+    ];
+
+    const updateData = {};
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    });
+
+    const hotel = await Hotel.findByIdAndUpdate(
+      hotelId,
+      updateData,
+      {
+        new: true,
+        runValidators: true
+      }
+    );
+
+    if (!hotel) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hotel not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Hotel updated successfully',
+      data: hotel
+    });
+  } catch (error) {
+    console.error('Manager update hotel error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error'
+    });
+  }
+};

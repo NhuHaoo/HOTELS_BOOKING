@@ -23,7 +23,9 @@ function calcDiscountAmount(promo, totalAmount) {
 --------------------------------------------------- */
 exports.getPromotions = async (req, res) => {
   try {
-    const promotions = await Promotion.find().sort({ createdAt: -1 });
+    const promotions = await Promotion.find()
+      .populate('hotelId', 'name city')
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -44,7 +46,8 @@ exports.getPromotions = async (req, res) => {
 --------------------------------------------------- */
 exports.getPromotion = async (req, res) => {
   try {
-    const promotion = await Promotion.findById(req.params.id);
+    const promotion = await Promotion.findById(req.params.id)
+      .populate('hotelId', 'name city');
 
     if (!promotion) {
       return res.status(404).json({
@@ -97,11 +100,15 @@ exports.createPromotion = async (req, res) => {
     }
 
     if (data.applyType === 'hotel') {
-      if (!data.hotelId) {
+      if (!data.hotelId || (Array.isArray(data.hotelId) && data.hotelId.length === 0)) {
         return res.status(400).json({
           success: false,
-          message: 'Vui lòng chọn khách sạn áp dụng',
+          message: 'Vui lòng chọn ít nhất một khách sạn áp dụng',
         });
+      }
+      // Đảm bảo hotelId là array nếu có nhiều hơn 1
+      if (!Array.isArray(data.hotelId) && data.hotelId) {
+        data.hotelId = [data.hotelId];
       }
       data.roomId = null;
     }
@@ -144,11 +151,15 @@ exports.updatePromotion = async (req, res) => {
         data.hotelId = null;
         data.roomId = null;
       } else if (data.applyType === 'hotel') {
-        if (!data.hotelId) {
+        if (!data.hotelId || (Array.isArray(data.hotelId) && data.hotelId.length === 0)) {
           return res.status(400).json({
             success: false,
-            message: 'Vui lòng chọn khách sạn áp dụng',
+            message: 'Vui lòng chọn ít nhất một khách sạn áp dụng',
           });
+        }
+        // Đảm bảo hotelId là array nếu có nhiều hơn 1
+        if (!Array.isArray(data.hotelId) && data.hotelId) {
+          data.hotelId = [data.hotelId];
         }
         data.roomId = null;
       } else if (data.applyType === 'room') {

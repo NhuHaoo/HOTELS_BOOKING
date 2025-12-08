@@ -9,7 +9,9 @@ const {
   updateBookingStatus,
   cancelBooking,
   getReviews,
-  deleteReview
+  deleteReview,
+  getHotel,
+  updateHotel
 } = require('../controllers/manager.controller');
 
 const { protect } = require('../middlewares/auth.middleware');
@@ -40,5 +42,11 @@ router.put('/bookings/:id/cancel', cancelBooking);
 // ===============================
 router.get('/reviews', getReviews);
 router.delete('/reviews/:id', deleteReview);
+
+// ===============================
+// HOTEL MANAGEMENT
+// ===============================
+router.get('/hotel', getHotel);
+router.put('/hotel', updateHotel);
 
 module.exports = router;

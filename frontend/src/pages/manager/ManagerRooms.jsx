@@ -305,26 +305,26 @@ const ManagerRooms = () => {
 
       {/* Rooms Table */}
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-hidden">
+          <table className="w-full table-fixed">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="w-[30%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Phòng
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="w-[15%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Loại
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="w-[15%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Giá
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="w-[15%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Đánh giá
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="w-[12%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Trạng thái
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                <th className="w-[13%] px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                   Thao tác
                 </th>
               </tr>
@@ -356,56 +356,40 @@ const ManagerRooms = () => {
               ) : (
                 rooms.map((room) => (
                   <tr key={room._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-3">
+                    <td className="px-2 py-3">
+                      <div className="flex items-center space-x-2">
                         <img
                           src={room.images?.[0]}
                           alt={room.name}
-                          className="w-16 h-16 object-cover rounded-lg bg-gray-100"
+                          className="w-12 h-12 object-cover rounded-lg bg-gray-100 flex-shrink-0"
                           onError={(e) => (e.currentTarget.style.display = "none")}
                         />
-                        <div>
-                          <div className="font-semibold">{room.name}</div>
-                          <div className="text-sm text-gray-500">
-                            {/* Hiển thị rõ người lớn / trẻ em / tổng khách / diện tích */}
-                            {room.maxAdults != null && (
-                              <span>{room.maxAdults} người lớn</span>
-                            )}
-                            {room.maxChildren != null && (
-                              <span>
-                                {" "}
-                                • {room.maxChildren} trẻ em
-                              </span>
-                            )}
-                            {room.maxGuests != null && (
-                              <span>
-                                {" "}
-                                • Tối đa {room.maxGuests} khách
-                              </span>
-                            )}
-                            {room.size != null && room.size !== "" && (
-                              <span> • {room.size}m²</span>
-                            )}
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-sm truncate">{room.name}</div>
+                          <div className="text-xs text-gray-500 truncate">
+                            {room.maxAdults != null && <span>{room.maxAdults} NL</span>}
+                            {room.maxChildren != null && <span> • {room.maxChildren} TE</span>}
+                            {room.size != null && room.size !== "" && <span> • {room.size}m²</span>}
                           </div>
                         </div>
                       </div>
                     </td>
 
-                    <td className="px-6 py-4">
-                      <span className="capitalize text-sm">{room.roomType}</span>
+                    <td className="px-2 py-3">
+                      <span className="capitalize text-xs truncate">{room.roomType}</span>
                     </td>
 
-                    <td className="px-6 py-4">
-                      <div className="font-semibold">{formatPrice(room.price)}</div>
+                    <td className="px-2 py-3">
+                      <div className="font-semibold text-sm">{formatPrice(room.price)}</div>
                       {room.discount > 0 && (
                         <div className="text-xs text-red-500">-{room.discount}%</div>
                       )}
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-2 py-3">
                       <div className="flex items-center">
-                        <FaStar className="text-yellow-500 mr-1" />
-                        <span className="font-semibold">
+                        <FaStar className="text-yellow-500 mr-1 flex-shrink-0" size={12} />
+                        <span className="font-semibold text-xs">
                           {room.rating?.toFixed(1) || "N/A"}
                         </span>
                         <span className="text-xs text-gray-500 ml-1">
@@ -414,9 +398,9 @@ const ManagerRooms = () => {
                       </div>
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-2 py-3">
                       <span
-                        className={`px-2 py-1 text-xs rounded-full ${
+                        className={`px-2 py-0.5 text-xs rounded-full ${
                           room.availability
                             ? "bg-green-100 text-green-800"
                             : "bg-red-100 text-red-800"
@@ -426,19 +410,23 @@ const ManagerRooms = () => {
                       </span>
                     </td>
 
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => openEditModal(room)}
-                        className="text-blue-600 hover:text-blue-800 mr-3"
-                      >
-                        <FaEdit />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(room._id)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <FaTrash />
-                      </button>
+                    <td className="px-2 py-3 text-right">
+                      <div className="flex justify-end space-x-1">
+                        <button
+                          onClick={() => openEditModal(room)}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          title="Sửa"
+                        >
+                          <FaEdit size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(room._id)}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                          title="Xóa"
+                        >
+                          <FaTrash size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

@@ -28,6 +28,7 @@ import ReviewCard from '../components/ReviewCard';
 import WeatherWidget from '../components/WeatherWidget';
 import RoomCard from '../components/RoomCard';
 import MapView from '../components/MapView';
+import Breadcrumb from '../components/Breadcrumb';
 import useAuthStore from '../store/useAuthStore';
 import useBookingStore from '../store/useBookingStore';
 import toast from 'react-hot-toast';
@@ -59,18 +60,62 @@ const RoomDetail = () => {
 
   const { data: couponRes } = useQuery({
     queryKey: ['active-coupons'],
-    queryFn: () => promotionAPI.getAll(),
+    queryFn: () => promotionAPI.getActiveCoupons(),
   });
 
   const room = roomData?.data;
   const reviews = reviewsData?.data || [];
   const reviewStats = reviewsData?.stats;
 
+  // Lọc mã giảm giá áp dụng cho phòng này
   const coupons =
     couponRes?.data?.data ||
     couponRes?.data ||
     [];
-  const bestCoupon = coupons[0];
+  
+  // Tìm mã giảm giá phù hợp với phòng này:
+  // - Mã global (applyType = 'global')
+  // - Mã áp dụng cho hotel này (applyType = 'hotel' và hotelId chứa hotel._id)
+  // - Mã áp dụng cho phòng này (applyType = 'room' và roomId = room._id)
+  const applicableCoupons = coupons.filter((coupon) => {
+    if (!coupon || !room) return false;
+    
+    // Mã global - áp dụng cho tất cả
+    if (coupon.applyType === 'global') return true;
+    
+    // Mã áp dụng cho hotel
+    if (coupon.applyType === 'hotel' && room.hotelId?._id) {
+      const hotelId = room.hotelId._id.toString();
+      // hotelId có thể là ObjectId hoặc array
+      if (Array.isArray(coupon.hotelId)) {
+        return coupon.hotelId.some(
+          (id) => id?.toString() === hotelId
+        );
+      } else {
+        return coupon.hotelId?.toString() === hotelId;
+      }
+    }
+    
+    // Mã áp dụng cho phòng cụ thể
+    if (coupon.applyType === 'room' && coupon.roomId) {
+      return coupon.roomId.toString() === room._id.toString();
+    }
+    
+    return false;
+  });
+  
+  // Lấy mã tốt nhất (ưu tiên theo discount value)
+  const bestCoupon = applicableCoupons.length > 0
+    ? applicableCoupons.sort((a, b) => {
+        const valueA = a.discountType === 'percent' 
+          ? a.discountValue * 1000 
+          : a.discountValue;
+        const valueB = b.discountType === 'percent' 
+          ? b.discountValue * 1000 
+          : b.discountValue;
+        return valueB - valueA;
+      })[0]
+    : null;
 
   const { data: otherRoomsData } = useQuery({
     queryKey: ['other-rooms', room?.hotelId?._id, id],
@@ -139,27 +184,33 @@ const RoomDetail = () => {
     );
   }
 
+  // Tạo breadcrumb items
+  const breadcrumbItems = [
+    { label: 'Trang chủ', path: '/' },
+  ];
+
+  // Thêm thành phố
+  if (room?.hotelId?.city) {
+    breadcrumbItems.push({
+      label: room.hotelId.city,
+      path: `/search?city=${encodeURIComponent(room.hotelId.city)}`,
+    });
+  }
+
+  // Thêm tên khách sạn (item cuối cùng, không có path)
+  if (room?.hotelId?.name) {
+    breadcrumbItems.push({
+      label: room.hotelId.name,
+      path: null, // Không click được
+    });
+  }
+
   return (
     <div className="min-h-screen bg-background">
+      {/* Breadcrumb */}
+      <Breadcrumb items={breadcrumbItems} />
+
       <div className="container-custom py-8">
-        {/* Breadcrumb */}
-        <div className="text-sm text-gray-600 mb-6">
-          <span
-            className="hover:text-primary cursor-pointer"
-            onClick={() => navigate('/')}
-          >
-            Trang chủ
-          </span>
-          <span className="mx-2">/</span>
-          <span
-            className="hover:text-primary cursor-pointer"
-            onClick={() => navigate('/search')}
-          >
-            Tìm kiếm
-          </span>
-          <span className="mx-2">/</span>
-          <span className="text-gray-900">{room.name}</span>
-        </div>
 
         {/* Image Gallery */}
         <div className="grid grid-cols-4 gap-2 mb-8">

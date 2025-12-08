@@ -296,29 +296,29 @@ const ManagerBookings = () => {
 
       {/* ===== Bookings Table ===== */}
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-hidden">
+          <table className="w-full table-fixed">
             <thead>
               <tr className="bg-gradient-to-r from-primary/10 to-primary/5">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase rounded-tl-lg">
+                <th className="w-[12%] px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase rounded-tl-lg">
                   Mã đặt phòng
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                <th className="w-[18%] px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
                   Khách hàng
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                <th className="w-[20%] px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
                   Phòng
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                <th className="w-[15%] px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
                   Ngày ở
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                <th className="w-[12%] px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
                   Tổng tiền
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                <th className="w-[13%] px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
                   Trạng thái
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase rounded-tr-lg">
+                <th className="w-[10%] px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase rounded-tr-lg">
                   Thao tác
                 </th>
               </tr>
@@ -346,32 +346,32 @@ const ManagerBookings = () => {
                     className="hover:bg-blue-50/50 transition-colors"
                   >
                     {/* booking code */}
-                    <td className="px-4 py-4">
-                      <div className="font-mono text-sm font-bold text-primary">
+                    <td className="px-2 py-3">
+                      <div className="font-mono text-xs font-bold text-primary truncate" title={booking.bookingCode || booking._id}>
                         {booking.bookingCode || booking._id}
                       </div>
                       <div className="text-xs text-gray-500 flex items-center mt-1">
-                        <FaClock className="mr-1" size={10} />
-                        {formatDate(booking.createdAt)}
+                        <FaClock className="mr-1 flex-shrink-0" size={9} />
+                        <span className="truncate">{formatDate(booking.createdAt)}</span>
                       </div>
                     </td>
 
                     {/* guest */}
-                    <td className="px-4 py-4">
+                    <td className="px-2 py-3">
                       <div className="flex items-center space-x-2">
-                        <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-full flex items-center justify-center text-white font-bold">
+                        <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary-dark rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
                           {booking.guestName?.charAt(0) ||
                             booking.userId?.name?.charAt(0) ||
                             "?"}
                         </div>
-                        <div>
-                          <div className="font-semibold text-sm">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-xs truncate" title={booking.guestName || booking.userId?.name}>
                             {booking.guestName || booking.userId?.name}
                           </div>
-                          <div className="text-xs text-gray-600">
+                          <div className="text-xs text-gray-600 truncate">
                             {booking.guestEmail || booking.userId?.email}
                           </div>
-                          <div className="text-xs text-gray-600">
+                          <div className="text-xs text-gray-600 truncate">
                             {booking.guestPhone || booking.userId?.phone}
                           </div>
                         </div>
@@ -379,24 +379,24 @@ const ManagerBookings = () => {
                     </td>
 
                     {/* room */}
-                    <td className="px-4 py-4">
-                      <div className="flex items-center space-x-3">
+                    <td className="px-2 py-3">
+                      <div className="flex items-center space-x-2">
                         <img
                           src={
                             booking.roomId?.images?.[0] || "/placeholder.jpg"
                           }
                           alt={booking.roomId?.name}
-                          className="w-16 h-16 object-cover rounded-lg shadow-sm"
+                          className="w-12 h-12 object-cover rounded-lg shadow-sm flex-shrink-0"
                         />
-                        <div>
-                          <div className="font-semibold text-sm flex items-center">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-xs flex items-center truncate">
                             <FaHotel
-                              className="mr-1 text-primary"
-                              size={12}
+                              className="mr-1 text-primary flex-shrink-0"
+                              size={10}
                             />
-                            {booking.roomId?.name}
+                            <span className="truncate">{booking.roomId?.name}</span>
                           </div>
-                          <div className="text-xs text-gray-600 mt-1">
+                          <div className="text-xs text-gray-600 mt-1 truncate">
                             {booking.hotelId?.name}
                           </div>
                         </div>
@@ -404,23 +404,23 @@ const ManagerBookings = () => {
                     </td>
 
                     {/* dates */}
-                    <td className="px-4 py-4">
-                      <div className="text-sm space-y-1">
+                    <td className="px-2 py-3">
+                      <div className="text-xs space-y-1">
                         <div className="flex items-center text-gray-700">
                           <FaCalendar
-                            className="mr-2 text-green-500"
-                            size={12}
+                            className="mr-1 text-green-500 flex-shrink-0"
+                            size={10}
                           />
-                          <span className="font-medium">
+                          <span className="font-medium truncate">
                             {formatDate(booking.checkIn)}
                           </span>
                         </div>
                         <div className="flex items-center text-gray-700">
                           <FaCalendar
-                            className="mr-2 text-red-500"
-                            size={12}
+                            className="mr-1 text-red-500 flex-shrink-0"
+                            size={10}
                           />
-                          <span className="font-medium">
+                          <span className="font-medium truncate">
                             {formatDate(booking.checkOut)}
                           </span>
                         </div>
@@ -431,25 +431,25 @@ const ManagerBookings = () => {
                               booking.checkOut
                             )}
                           </span>{" "}
-                          đêm • <FaUser className="inline ml-1 mr-1" size={10} />
+                          đêm • <FaUser className="inline ml-1 mr-1" size={9} />
                           {booking.guests} khách
                         </div>
                       </div>
                     </td>
 
                     {/* total price */}
-                    <td className="px-4 py-4">
-                      <div className="font-bold text-lg text-accent flex items-center">
-                        <FaDollarSign className="mr-1" size={14} />
-                        {formatPrice(booking.totalPrice)}
+                    <td className="px-2 py-3">
+                      <div className="font-bold text-sm text-accent flex items-center">
+                        <FaDollarSign className="mr-1 flex-shrink-0" size={12} />
+                        <span className="truncate">{formatPrice(booking.totalPrice)}</span>
                       </div>
                     </td>
 
                     {/* status badges */}
-                    <td className="px-4 py-4">
-                      <div className="space-y-2">
+                    <td className="px-2 py-3">
+                      <div className="space-y-1">
                         <span
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
                             booking.bookingStatus === "confirmed"
                               ? "bg-blue-100 text-blue-800"
                               : booking.bookingStatus === "checked-in"
@@ -465,32 +465,33 @@ const ManagerBookings = () => {
                           {BOOKING_STATUS[booking.bookingStatus]?.label ||
                             booking.bookingStatus}
                         </span>
-                        <br />
-                        <span
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                            booking.paymentStatus === "paid"
-                              ? "bg-green-100 text-green-800"
-                              : booking.paymentStatus === "cancelled"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-yellow-100 text-yellow-800"
-                          }`}
-                        >
-                          {booking.paymentStatus === "paid" ? "✓" : "⏳"}{" "}
-                          {PAYMENT_STATUS[booking.paymentStatus]?.label ||
-                            booking.paymentStatus}
-                        </span>
+                        <div>
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                              booking.paymentStatus === "paid"
+                                ? "bg-green-100 text-green-800"
+                                : booking.paymentStatus === "cancelled"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-yellow-100 text-yellow-800"
+                            }`}
+                          >
+                            {booking.paymentStatus === "paid" ? "✓" : "⏳"}{" "}
+                            {PAYMENT_STATUS[booking.paymentStatus]?.label ||
+                              booking.paymentStatus}
+                          </span>
+                        </div>
                       </div>
                     </td>
 
                     {/* actions */}
-                    <td className="px-4 py-4">
-                      <div className="flex justify-center space-x-2">
+                    <td className="px-2 py-3">
+                      <div className="flex justify-center space-x-1">
                         <button
                           onClick={() => setSelectedBooking(booking)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Xem chi tiết"
                         >
-                          <FaEye size={18} />
+                          <FaEye size={16} />
                         </button>
 
                         {/* Manager chỉ xử lý các trạng thái chưa xong */}
@@ -510,7 +511,7 @@ const ManagerBookings = () => {
                                       : "checked-out"
                                 })
                               }
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                               title={
                                 booking.bookingStatus === "pending"
                                   ? "Xác nhận"
@@ -519,16 +520,16 @@ const ManagerBookings = () => {
                                   : "Trả phòng"
                               }
                             >
-                              <FaCheck size={18} />
+                              <FaCheck size={16} />
                             </button>
 
                             {booking.bookingStatus !== "cancelled" && (
                               <button
                                 onClick={() => handleCancelBooking(booking._id)}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                 title="Hủy đặt phòng"
                               >
-                                <FaTimes size={18} />
+                                <FaTimes size={16} />
                               </button>
                             )}
                           </>

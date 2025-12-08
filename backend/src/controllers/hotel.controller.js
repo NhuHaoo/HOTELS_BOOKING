@@ -22,23 +22,140 @@ exports.getHotels = async (req, res) => {
       sort = '-rating'
     } = req.query;
 
-    let query = { isActive: true };
+    // Get status from query params
+    const status = req.query.status;
+
+    // Admin can see all hotels, public users only see active ones
+    let query = {};
+    const isAdmin = req.user && req.user.role === 'admin';
+    
+    // Status filter (only for admin) - MUST be applied FIRST
+    if (isAdmin) {
+      // Admin can see all hotels by default (no filter)
+      if (status && status !== '') {
+        if (status === 'inactive') {
+          // Filter by isActive = false (hotels that are disabled)
+          query.isActive = false;
+          // Don't filter by status field when filtering inactive
+        } else if (status === 'active') {
+          // When filtering active, ensure both status and isActive are true
+          // Also include hotels without status field (default to 'active')
+          query.$and = [
+            {
+              $or: [
+                { status: 'active' },
+                { status: { $exists: false } },
+                { status: null }
+              ]
+            },
+            { isActive: true }
+          ];
+        } else if (status === 'suspended') {
+          // Filter by status = 'suspended' (can be active or inactive)
+          query.status = 'suspended';
+        } else if (status === 'violation') {
+          // Filter by status = 'violation' (can be active or inactive)
+          query.status = 'violation';
+        }
+      }
+      // If no status filter, admin sees ALL hotels (no isActive filter)
+    } else {
+      // Non-admin users only see active hotels
+      query.isActive = true;
+    }
+
+    // City filter - handle first as it affects search logic
+    const hasCityFilter = city && city.trim();
+    const cityRegex = hasCityFilter ? new RegExp(city.trim(), 'i') : null;
 
     // Full-text search
-    if (search) {
-      query.$or = [
-        { name: new RegExp(search, 'i') },
-        { city: new RegExp(search, 'i') },
-        { address: new RegExp(search, 'i') },
-        { description: new RegExp(search, 'i') },
-        { introduction: new RegExp(search, 'i') }
-      ];
+    // Check if we already have $or from status filter
+    const hasStatusOr = query.$or && Array.isArray(query.$or);
+    
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      
+      if (hasCityFilter) {
+        // If both search and city exist:
+        // Search in name, address, description, introduction (NOT city, because city is filtered separately)
+        // AND city must match city filter
+        const searchOr = [
+          { name: searchRegex },
+          { address: searchRegex },
+          { description: searchRegex },
+          { introduction: searchRegex }
+        ];
+        
+        // If we have status $or, combine with $and
+        if (hasStatusOr) {
+          if (!query.$and) query.$and = [];
+          query.$and.push({ $or: searchOr });
+          // Keep existing $or from status filter
+        } else {
+          query.$or = searchOr;
+        }
+        query.city = cityRegex;
+      } else {
+        // If only search (no city filter), search in all fields including city
+        const searchOr = [
+          { name: searchRegex },
+          { city: searchRegex },
+          { address: searchRegex },
+          { description: searchRegex },
+          { introduction: searchRegex }
+        ];
+        
+        // If we have status $or, combine with $and
+        if (hasStatusOr) {
+          if (!query.$and) query.$and = [];
+          query.$and.push({ $or: searchOr });
+          // Keep existing $or from status filter
+        } else {
+          query.$or = searchOr;
+    }
+      }
+    } else if (hasCityFilter) {
+      // If only city filter (no search), use direct query
+      query.city = cityRegex;
     }
 
-    // City filter
-    if (city) {
-      query.city = new RegExp(city, 'i');
-    }
+    // Convert RegExp to string for logging
+    const queryForLog = {};
+    Object.keys(query).forEach(key => {
+      if (query[key] instanceof RegExp) {
+        queryForLog[key] = query[key].toString();
+      } else if (Array.isArray(query[key])) {
+        queryForLog[key] = query[key].map(item => {
+          if (item instanceof RegExp) {
+            return item.toString();
+          }
+          if (typeof item === 'object' && item !== null) {
+            const itemObj = {};
+            Object.keys(item).forEach(k => {
+              if (item[k] instanceof RegExp) {
+                itemObj[k] = item[k].toString();
+              } else {
+                itemObj[k] = item[k];
+              }
+            });
+            return itemObj;
+          }
+          return item;
+        });
+      } else if (typeof query[key] === 'object' && query[key] !== null) {
+        const obj = {};
+        Object.keys(query[key]).forEach(k => {
+          if (query[key][k] instanceof RegExp) {
+            obj[k] = query[key][k].toString();
+          } else {
+            obj[k] = query[key][k];
+          }
+        });
+        queryForLog[key] = obj;
+      } else {
+        queryForLog[key] = query[key];
+      }
+    });
 
     if (rating) {
       query.rating = { $gte: Number(rating) };
@@ -53,6 +170,44 @@ exports.getHotels = async (req, res) => {
     if (starRating) {
       query.starRating = Number(starRating);
     }
+
+    // Log final query after all filters
+    const finalQueryForLog = {};
+    Object.keys(query).forEach(key => {
+      if (query[key] instanceof RegExp) {
+        finalQueryForLog[key] = query[key].toString();
+      } else if (Array.isArray(query[key])) {
+        finalQueryForLog[key] = query[key].map(item => {
+          if (item instanceof RegExp) {
+            return item.toString();
+          }
+          if (typeof item === 'object' && item !== null) {
+            const itemObj = {};
+            Object.keys(item).forEach(k => {
+              if (item[k] instanceof RegExp) {
+                itemObj[k] = item[k].toString();
+              } else {
+                itemObj[k] = item[k];
+              }
+            });
+            return itemObj;
+          }
+          return item;
+        });
+      } else if (typeof query[key] === 'object' && query[key] !== null) {
+        const obj = {};
+        Object.keys(query[key]).forEach(k => {
+          if (query[key][k] instanceof RegExp) {
+            obj[k] = query[key][k].toString();
+          } else {
+            obj[k] = query[key][k];
+          }
+        });
+        finalQueryForLog[key] = obj;
+      } else {
+        finalQueryForLog[key] = query[key];
+      }
+    });
 
     // Location-based filter
     if (latitude && longitude) {
@@ -74,6 +229,44 @@ exports.getHotels = async (req, res) => {
     }
 
     const startIndex = (page - 1) * limit;
+
+    // Convert query to loggable format
+    const queryForExecution = {};
+    Object.keys(query).forEach(key => {
+      if (query[key] instanceof RegExp) {
+        queryForExecution[key] = query[key].toString();
+      } else if (Array.isArray(query[key])) {
+        queryForExecution[key] = query[key].map(item => {
+          if (item instanceof RegExp) {
+            return item.toString();
+          }
+          if (typeof item === 'object' && item !== null) {
+            const itemObj = {};
+            Object.keys(item).forEach(k => {
+              if (item[k] instanceof RegExp) {
+                itemObj[k] = item[k].toString();
+              } else {
+                itemObj[k] = item[k];
+              }
+            });
+            return itemObj;
+          }
+          return item;
+        });
+      } else if (typeof query[key] === 'object' && query[key] !== null) {
+        const obj = {};
+        Object.keys(query[key]).forEach(k => {
+          if (query[key][k] instanceof RegExp) {
+            obj[k] = query[key][k].toString();
+          } else {
+            obj[k] = query[key][k];
+          }
+        });
+        queryForExecution[key] = obj;
+      } else {
+        queryForExecution[key] = query[key];
+      }
+    });
 
     const hotels = await Hotel.find(query)
       .populate('rooms')
@@ -110,7 +303,46 @@ exports.getHotels = async (req, res) => {
       })
     );
 
+    // Count total with the same query
     const total = await Hotel.countDocuments(query);
+    
+    // Log query used for counting
+    const countQueryForLog = {};
+    Object.keys(query).forEach(key => {
+      if (query[key] instanceof RegExp) {
+        countQueryForLog[key] = query[key].toString();
+      } else if (Array.isArray(query[key])) {
+        countQueryForLog[key] = query[key].map(item => {
+          if (item instanceof RegExp) {
+            return item.toString();
+          }
+          if (typeof item === 'object' && item !== null) {
+            const itemObj = {};
+            Object.keys(item).forEach(k => {
+              if (item[k] instanceof RegExp) {
+                itemObj[k] = item[k].toString();
+              } else {
+                itemObj[k] = item[k];
+              }
+            });
+            return itemObj;
+          }
+          return item;
+        });
+      } else if (typeof query[key] === 'object' && query[key] !== null) {
+        const obj = {};
+        Object.keys(query[key]).forEach(k => {
+          if (query[key][k] instanceof RegExp) {
+            obj[k] = query[key][k].toString();
+          } else {
+            obj[k] = query[key][k];
+          }
+        });
+        countQueryForLog[key] = obj;
+      } else {
+        countQueryForLog[key] = query[key];
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -267,6 +499,120 @@ exports.deleteHotel = async (req, res) => {
     });
   } catch (error) {
     console.error('Delete hotel error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Update hotel status (Enable/Disable/Suspend/Mark violation)
+// @route   PUT /api/hotels/:id/status
+// @access  Private/Admin
+exports.updateHotelStatus = async (req, res) => {
+  try {
+    const { status, violationReason } = req.body;
+    const hotel = await Hotel.findById(req.params.id);
+
+    if (!hotel) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hotel not found'
+      });
+    }
+
+    // Validate status
+    const validStatuses = ['active', 'suspended', 'violation'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status. Must be: active, suspended, or violation'
+      });
+    }
+
+    // Update hotel status
+    hotel.status = status;
+    
+    if (status === 'active') {
+      hotel.isActive = true;
+      hotel.suspendedAt = null;
+      hotel.suspendedBy = null;
+      hotel.violationReason = null;
+    } else if (status === 'suspended') {
+      hotel.isActive = false;
+      hotel.suspendedAt = new Date();
+      hotel.suspendedBy = req.user.id;
+      hotel.violationReason = null;
+    } else if (status === 'violation') {
+      hotel.isActive = false;
+      hotel.suspendedAt = new Date();
+      hotel.suspendedBy = req.user.id;
+      hotel.violationReason = violationReason || 'Vi phạm quy định của hệ thống';
+    }
+
+    await hotel.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Hotel status updated to ${status} successfully`,
+      data: hotel
+    });
+  } catch (error) {
+    console.error('Update hotel status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Toggle hotel active status (Enable/Disable)
+// @route   PUT /api/hotels/:id/toggle-active
+// @access  Private/Admin, Manager
+exports.toggleHotelActive = async (req, res) => {
+  try {
+    const hotel = await Hotel.findById(req.params.id);
+
+    if (!hotel) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hotel not found'
+      });
+    }
+
+    // Manager can only toggle their own hotel
+    if (req.user.role === 'manager' && hotel._id.toString() !== req.user.hotelId?.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this hotel'
+      });
+    }
+
+    // Toggle isActive
+    hotel.isActive = !hotel.isActive;
+    
+    // If disabling, update status to suspended
+    if (!hotel.isActive && hotel.status === 'active') {
+      hotel.status = 'suspended';
+      hotel.suspendedAt = new Date();
+      hotel.suspendedBy = req.user.id;
+    } else if (hotel.isActive && hotel.status === 'suspended') {
+      // If enabling and was suspended, set back to active
+      hotel.status = 'active';
+      hotel.suspendedAt = null;
+      hotel.suspendedBy = null;
+      hotel.violationReason = null;
+    }
+
+    await hotel.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Hotel ${hotel.isActive ? 'enabled' : 'disabled'} successfully`,
+      data: hotel
+    });
+  } catch (error) {
+    console.error('Toggle hotel active error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'

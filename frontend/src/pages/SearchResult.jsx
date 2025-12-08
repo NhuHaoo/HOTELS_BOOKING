@@ -7,7 +7,8 @@ import RoomCard from '../components/RoomCard';
 import Loading from '../components/Loading';
 import Pagination from '../components/Pagination';
 import WeatherWidget from '../components/WeatherWidget';
-import MapView from '../components/MapView'; // 👈 THÊM
+import MapView from '../components/MapView';
+import Breadcrumb from '../components/Breadcrumb'; 
 
 import {
   Filter,
@@ -286,8 +287,24 @@ const SearchResult = () => {
     return { lat: 10.762622, lng: 106.660172 };
   })();
 
+  // Tạo breadcrumb items
+  const breadcrumbItems = [
+    { label: 'Trang chủ', path: '/' },
+  ];
+
+  // Thêm thành phố nếu có
+  if (filters.city) {
+    breadcrumbItems.push({
+      label: filters.city,
+      path: null, // Current page, không click được
+    });
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20">
+      {/* Breadcrumb */}
+      <Breadcrumb items={breadcrumbItems} />
+
       <div className="container-custom py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-4 md:mb-6">
@@ -327,7 +344,7 @@ const SearchResult = () => {
         </div>
 
         {/* Thanh sort + Xem bản đồ */}
-        <div className="flex items-center justify-between mb-4 md:mb-6">
+        <div className="flex items-center justify-between mb-3 md:mb-4">
           <div className="inline-flex items-center gap-2">
             <span className="text-sm text-gray-600">Sắp xếp theo</span>
             <div className="relative">
@@ -358,33 +375,36 @@ const SearchResult = () => {
 
         {/* Bản đồ hiển thị ngay dưới thanh sort */}
         {showMap && (
-          <div className="mb-6 rounded-2xl overflow-hidden bg-white shadow-lg border border-gray-100">
-            <MapView
-              latitude={mapCenter.lat}
-              longitude={mapCenter.lng}
-              hotelName={filters.city || 'Khu vực tìm kiếm'}
-              hotelAddress={
-                filters.city ||
-                (hotels[0]?.hotel?.address
-                  ? `${hotels[0].hotel.address}, ${hotels[0].hotel.city || ''}`
-                  : '')
-              }
-              zoom={12}
-              height="380px"
-            />
-          </div>
-        )}
+        <div className="mb-6 rounded-2xl overflow-hidden bg-white shadow-lg border border-gray-100">
+          <MapView
+            latitude={mapCenter.lat}
+            longitude={mapCenter.lng}
+            hotelName={filters.city || 'Khu vực tìm kiếm'}
+            hotelAddress={
+              filters.city ||
+              (hotels[0]?.hotel?.address
+                ? `${hotels[0].hotel.address}, ${hotels[0].hotel.city || ''}`
+                : '')
+            }
+            zoom={12}
+            height="380px"
+            // 👇 THÊM: truyền danh sách khách sạn để vẽ nhiều chấm
+            hotels={hotels.map((h) => h.hotel)}
+          />
+        </div>
+      )}
+
 
         <div className="flex flex-col md:flex-row gap-6">
           {/* Filters Sidebar */}
           <aside
             className={`${showFilters ? 'block' : 'hidden'} md:block w-full md:w-72 flex-shrink-0`}
           >
-            <div className="backdrop-blur-xl bg-white/80 border border-white/20 shadow-2xl rounded-2xl p-6 sticky top-20">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <SlidersHorizontal className="w-5 h-5 text-blue-600" />
-                  <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <div className="backdrop-blur-xl bg-white/80 border border-white/20 shadow-2xl rounded-xl p-4 sticky top-20">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="w-4 h-4 text-blue-600" />
+                  <h2 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                     Bộ lọc
                   </h2>
                   {activeFiltersCount > 0 && (
@@ -403,26 +423,27 @@ const SearchResult = () => {
                 )}
               </div>
 
-              <div className="space-y-6">
-                {/* City Filter */}
+              <div className="space-y-4">
+                {/* Keyword / Location Filter */}
                 <div className="group">
                   <label className="flex items-center gap-2 font-semibold text-gray-700 mb-3">
-                    <MapPin className="w-4 h-4 text-blue-500" />
-                    Thành phố
+                    <Search className="w-4 h-4 text-blue-500" />
+                    Tìm theo tên
                   </label>
-                  <select
-                    value={filters.city}
-                    onChange={(e) => handleFilterChange('city', e.target.value)}
-                    className="input w-full border-2 border-gray-200 focus:border-blue-500 rounded-xl transition-all duration-200"
-                  >
-                    <option value="">Tất cả thành phố</option>
-                    {CITIES.map((city) => (
-                      <option key={city} value={city}>
-                        {city}
-                      </option>
-                    ))}
-                  </select>
+
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+
+                    <input
+                      type="text"
+                      placeholder="Nhập tên khách sạn, thành phố, địa điểm..."
+                      value={filters.search}
+                      onChange={(e) => handleFilterChange('search', e.target.value)}
+                      className="input w-full pl-9 border-2 border-gray-200 focus:border-blue-500 rounded-xl transition-all duration-200"
+                    />
+                  </div>
                 </div>
+
 
                 {/* Price Range */}
                 <div>
@@ -732,42 +753,42 @@ const SearchResult = () => {
                     return (
                       <div
                         key={item.hotelId}
-                        className="group backdrop-blur-xl bg-white/90 border border-white/20 rounded-2xl p-5 flex flex-col md:flex-row gap-5 hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer overflow-hidden"
+                        className="group backdrop-blur-xl bg-white/90 border border-white/20 rounded-xl p-4 flex flex-col md:flex-row gap-4 hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 cursor-pointer overflow-hidden"
                         onClick={() => handleViewHotelRooms(item)}
                       >
                         {/* Image */}
-                        <div className="md:w-1/3 w-full relative overflow-hidden rounded-xl">
+                        <div className="md:w-1/3 w-full relative overflow-hidden rounded-lg">
                           <img
                             src={img}
                             alt={hotel.name}
-                            className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500"
+                            className="w-full h-40 object-cover group-hover:scale-110 transition-transform duration-500"
                           />
-                          <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-semibold text-gray-700 shadow-lg">
+                          <div className="absolute top-2 right-2 bg-white/95 backdrop-blur-sm px-2 py-0.5 rounded text-xs font-semibold text-gray-700 shadow-sm">
                             {roomsCount} phòng
                           </div>
                         </div>
 
                         {/* Hotel Info */}
-                        <div className="flex-1 flex flex-col md:flex-row gap-4">
+                        <div className="flex-1 flex flex-col md:flex-row gap-3">
                           <div className="flex-1">
-                            <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors duration-300">
+                            <h3 className="text-lg font-bold text-gray-900 mb-1.5 group-hover:text-blue-600 transition-colors duration-300">
                               {hotel.name}
                             </h3>
 
-                            <div className="flex items-center gap-3 mb-2">
+                            <div className="flex items-center gap-2 mb-1.5">
                               <div className="flex items-center text-yellow-400">
                                 {[1, 2, 3, 4, 5].map((i) => (
                                   <Star
                                     key={i}
-                                    className={`w-4 h-4 ${
+                                    className={`w-3 h-3 ${
                                       i <= (hotel.starRating || 5)
-                                        ? 'fill-yellow-400'
-                                        : 'opacity-30'
+                                        ? 'fill-yellow-400 text-yellow-400'
+                                        : 'opacity-20'
                                     }`}
                                   />
                                 ))}
                               </div>
-                              <span className="text-xs px-3 py-1 rounded-full bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-700 font-bold border border-emerald-200">
+                              <span className="text-xs px-2 py-0.5 rounded bg-green-50 text-green-700 font-semibold border border-green-100">
                                 {hotel.rating?.toFixed
                                   ? hotel.rating.toFixed(1)
                                   : hotel.rating || '9.0'}{' '}
@@ -775,16 +796,16 @@ const SearchResult = () => {
                               </span>
                             </div>
 
-                            <div className="flex items-center text-sm text-gray-600 mb-3">
-                              <MapPin className="w-4 h-4 mr-1 text-red-500" />
-                              <span>
+                            <div className="flex items-center text-xs text-gray-600 mb-2">
+                              <MapPin className="w-3 h-3 mr-1 text-blue-500" />
+                              <span className="truncate">
                                 {hotel.address || hotel.city || 'Việt Nam'}
                               </span>
                             </div>
 
-                            <div className="flex flex-wrap gap-2 text-xs">
+                            <div className="flex flex-wrap gap-1.5 text-xs">
                               {hotel.hotelType && (
-                                <span className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 rounded-full border border-blue-200 font-medium">
+                                <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded font-medium border border-blue-100">
                                   {hotel.hotelType === 'hotel'
                                     ? 'Khách sạn'
                                     : hotel.hotelType}
@@ -793,13 +814,13 @@ const SearchResult = () => {
                               {hotel.amenities?.slice(0, 3).map((a) => (
                                 <span
                                   key={a}
-                                  className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full border border-gray-200 font-medium"
+                                  className="px-2 py-0.5 bg-gray-50 text-gray-700 rounded font-medium border border-gray-200"
                                 >
                                   {a}
                                 </span>
                               ))}
                               {roomsCount > 1 && (
-                                <span className="px-3 py-1.5 bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 rounded-full border border-orange-200 font-medium">
+                                <span className="px-2 py-0.5 bg-gray-50 text-gray-700 rounded font-medium border border-gray-200">
                                   {roomsCount} loại phòng
                                 </span>
                               )}
@@ -807,50 +828,26 @@ const SearchResult = () => {
 
                             {/* Promotion Banner */}
                             {highlightCoupon && (
-                              <div className="mt-4">
-                                <div className="inline-flex items-center gap-2 bg-gradient-to-r from-red-600 to-pink-600 text-white px-4 py-2.5 rounded-2xl text-xs md:text-sm font-bold shadow-lg hover:shadow-xl transition-shadow duration-300">
-                                  <span className="flex items-center justify-center w-7 h-7 rounded-full bg-white/20 border border-white/40 backdrop-blur-sm">
-                                    <Percent className="w-3 h-3" />
-                                  </span>
-
-                                  <div className="flex flex-col md:flex-row md:items-center md:gap-1">
-                                    <span>
-                                      Mã{' '}
-                                      <span className="font-black">
-                                        {highlightCoupon.code}
+                              <div className="mt-3">
+                                <div className="flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg">
+                                  <Percent className="w-4 h-4 text-orange-600 flex-shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-xs font-semibold text-orange-700">
+                                        Mã <span className="font-mono">{highlightCoupon.code}</span>
                                       </span>
-                                    </span>
-
-                                    {highlightCoupon.title && (
-                                      <span className="md:inline hidden">
-                                        {' '}
-                                        – {highlightCoupon.title}
-                                      </span>
-                                    )}
-
-                                    {!highlightCoupon.title &&
-                                      highlightCoupon.description && (
-                                        <span className="md:inline hidden">
-                                          {' '}
-                                          – {highlightCoupon.description}
+                                      {highlightCoupon.discountType && (
+                                        <span className="text-xs text-orange-600">
+                                          {highlightCoupon.discountType === 'percent'
+                                            ? `Giảm ${highlightCoupon.discountValue || 0}%`
+                                            : `Giảm ${(highlightCoupon.discountValue || 0).toLocaleString('vi-VN')}đ`}
                                         </span>
                                       )}
-
-                                    {highlightCoupon.discountType && (
-                                      <span className="md:inline hidden">
-                                        {' '}
-                                        –{' '}
-                                        {highlightCoupon.discountType ===
-                                          'percent' &&
-                                          `Giảm ${
-                                            highlightCoupon.discountValue || 0
-                                          }%`}
-                                        {highlightCoupon.discountType ===
-                                          'amount' &&
-                                          `Giảm ${(
-                                            highlightCoupon.discountValue || 0
-                                          ).toLocaleString('vi-VN')}đ`}
-                                      </span>
+                                    </div>
+                                    {(highlightCoupon.title || highlightCoupon.description) && (
+                                      <p className="text-xs text-gray-600 mt-0.5 line-clamp-1">
+                                        {highlightCoupon.title || highlightCoupon.description}
+                                      </p>
                                     )}
                                   </div>
                                 </div>
@@ -859,12 +856,12 @@ const SearchResult = () => {
                           </div>
 
                           {/* Price & Button */}
-                          <div className="md:w-56 flex flex-col justify-between items-end text-right">
-                            <div className="mb-3">
-                              <div className="text-xs text-gray-500 mb-1">
+                          <div className="md:w-52 flex flex-col justify-between items-end text-right">
+                            <div className="mb-2">
+                              <div className="text-xs text-gray-500 mb-0.5">
                                 *Giá trung bình / đêm
                               </div>
-                              <div className="text-2xl font-black bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+                              <div className="text-2xl font-bold" style={{ color: '#003580' }}>
                                 {minPrice
                                   ? minPrice.toLocaleString('vi-VN') + ' đ'
                                   : 'Liên hệ'}
@@ -876,7 +873,10 @@ const SearchResult = () => {
                                 e.stopPropagation();
                                 handleViewHotelRooms(item);
                               }}
-                              className="btn bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-2.5 text-sm rounded-full font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+                              className="btn text-white px-4 py-2 text-xs rounded font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
+                              style={{ backgroundColor: '#003580' }}
+                              onMouseEnter={(e) => e.target.style.backgroundColor = '#002d66'}
+                              onMouseLeave={(e) => e.target.style.backgroundColor = '#003580'}
                             >
                               Xem phòng →
                             </button>

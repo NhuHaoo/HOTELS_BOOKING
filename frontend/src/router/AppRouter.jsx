@@ -9,6 +9,7 @@ import ProtectedRoute from '../components/ProtectedRoute';
 import ManagerDashboard from '../pages/manager/ManagerDashboard';
 import ManagerRooms from '../pages/manager/ManagerRooms';
 import ManagerBookings from "../pages/manager/ManagerBookings";
+import ManagerHotel from '../pages/manager/ManagerHotel';
 import ManagerReviews from '../pages/manager/ManagerReviews';
 
 // Public Pages
@@ -144,6 +145,7 @@ const AppRouter = () => {
         >
           <Route index element={<ManagerDashboard />} />
           <Route path="dashboard" element={<ManagerDashboard />} />
+          <Route path="hotel" element={<ManagerHotel />} />
           <Route path="rooms" element={<ManagerRooms />} />
           <Route path="bookings" element={<ManagerBookings />} />
           <Route path="reviews" element={<ManagerReviews />} />

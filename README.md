@@ -31,6 +31,7 @@
 ## ✨ Features
 
 ### 🎯 Core Features
+
 - ✅ **User Authentication & Authorization** (JWT-based with role management)
 - ✅ **Hotel & Room Management** (CRUD operations with image uploads)
 - ✅ **Advanced Search & Filtering** (location, price, amenities, dates)
@@ -41,6 +42,7 @@
 - ✅ **User Profile Management** with booking history
 
 ### 🤖 AI-Powered Features
+
 - 🧠 **AI Chatbot** powered by OpenAI GPT-4o-mini
   - Natural language room search
   - Personalized recommendations
@@ -53,6 +55,7 @@
 - 📊 **Trending Destinations** with AI insights
 
 ### 🌐 Additional Features
+
 - 🌤️ **Real-time Weather Integration** (OpenWeatherMap API)
 - 🗺️ **Interactive Maps** with Mapbox GL JS
 - 📱 **Responsive Design** (Mobile, Tablet, Desktop)
@@ -66,6 +69,7 @@
 ## 🛠 Tech Stack
 
 ### Backend
+
 - **Runtime**: Node.js v16+
 - **Framework**: Express.js
 - **Database**: MongoDB with Mongoose ODM
@@ -77,6 +81,7 @@
 - **Weather**: OpenWeatherMap API
 
 ### Frontend
+
 - **Framework**: React 18 with Vite
 - **Routing**: React Router v6
 - **State Management**: Zustand + TanStack Query
@@ -90,6 +95,7 @@
 - **Date Picker**: React Datepicker
 
 ### Development Tools
+
 - **Package Manager**: npm
 - **Version Control**: Git
 - **Code Quality**: ESLint
@@ -121,6 +127,7 @@ Before running this project, ensure you have:
 ### Option 1: Automated Setup (Recommended)
 
 #### For Linux/macOS:
+
 ```bash
 # Clone the repository
 git clone <repository-url>
@@ -135,6 +142,7 @@ chmod +x setup.sh
 ```
 
 #### For Windows:
+
 ```cmd
 # Clone the repository
 git clone <repository-url>
@@ -168,6 +176,7 @@ npm install
 #### 2. Configure Environment Variables
 
 **Backend** (`backend/.env`):
+
 ```env
 # Server Configuration
 PORT=2409
@@ -209,6 +218,7 @@ VNPAY_API_URL=https://sandbox.vnpayment.vn/merchant_webapi/api/transaction
 ```
 
 **Frontend** (`frontend/.env`):
+
 ```env
 VITE_API_URL=http://localhost:2409/api
 VITE_MAPBOX_TOKEN=your_mapbox_token_here
@@ -222,6 +232,7 @@ npm run seed:import
 ```
 
 This creates:
+
 - 11 sample users (including admin)
 - 3 hotels with locations
 - 12 rooms with images and amenities
@@ -232,6 +243,7 @@ This creates:
 #### 4. Start Development Servers
 
 **Using Scripts:**
+
 ```bash
 # From project root
 ./run.sh          # Linux/macOS
@@ -239,6 +251,7 @@ run.bat           # Windows
 ```
 
 **Manual Start:**
+
 ```bash
 # Terminal 1 - Backend
 cd backend
@@ -256,8 +269,10 @@ npm run dev
 - 📚 **API Docs**: http://localhost:2409/api
 
 **Demo Accounts:**
+
 - Admin: `admin@example.com` / `admin123`
 - User: `user1@example.com` / `password123`
+- Manager: `manager1@example.com` / `admin123`
 
 ---
 
@@ -395,29 +410,29 @@ QuanLyKhachSan/
 
 ### Backend Environment Variables
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `PORT` | Backend server port | No | `2409` |
-| `NODE_ENV` | Environment (development/production) | No | `development` |
-| `FRONTEND_URL` | Frontend URL for CORS | No | `http://localhost:3000` |
-| `MONGODB_URI` | MongoDB connection string | Yes | - |
-| `JWT_SECRET` | Secret key for JWT signing | Yes | - |
-| `JWT_EXPIRE` | JWT expiration time | No | `7d` |
-| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name | Yes* | - |
-| `CLOUDINARY_API_KEY` | Cloudinary API key | Yes* | - |
-| `CLOUDINARY_API_SECRET` | Cloudinary API secret | Yes* | - |
-| `EMAIL_HOST` | SMTP host | No** | - |
-| `EMAIL_PORT` | SMTP port | No** | `587` |
-| `EMAIL_USER` | Email username | No** | - |
-| `EMAIL_PASSWORD` | Email password | No** | - |
-| `EMAIL_FROM` | Sender email | No** | - |
-| `OPENAI_API_KEY` | OpenAI API key | No*** | - |
-| `OPENAI_MODEL` | OpenAI model name | No | `gpt-4o-mini` |
-| `WEATHER_API_KEY` | OpenWeatherMap API key | No | - |
-| `VNPAY_TMN_CODE` | VNPay terminal code | Yes**** | - |
-| `VNPAY_HASH_SECRET` | VNPay hash secret | Yes**** | - |
-| `VNPAY_URL` | VNPay payment URL | Yes**** | - |
-| `VNPAY_RETURN_URL` | VNPay callback URL | Yes**** | - |
+| Variable                | Description                          | Required    | Default                 |
+| ----------------------- | ------------------------------------ | ----------- | ----------------------- |
+| `PORT`                  | Backend server port                  | No          | `2409`                  |
+| `NODE_ENV`              | Environment (development/production) | No          | `development`           |
+| `FRONTEND_URL`          | Frontend URL for CORS                | No          | `http://localhost:3000` |
+| `MONGODB_URI`           | MongoDB connection string            | Yes         | -                       |
+| `JWT_SECRET`            | Secret key for JWT signing           | Yes         | -                       |
+| `JWT_EXPIRE`            | JWT expiration time                  | No          | `7d`                    |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name                | Yes\*       | -                       |
+| `CLOUDINARY_API_KEY`    | Cloudinary API key                   | Yes\*       | -                       |
+| `CLOUDINARY_API_SECRET` | Cloudinary API secret                | Yes\*       | -                       |
+| `EMAIL_HOST`            | SMTP host                            | No\*\*      | -                       |
+| `EMAIL_PORT`            | SMTP port                            | No\*\*      | `587`                   |
+| `EMAIL_USER`            | Email username                       | No\*\*      | -                       |
+| `EMAIL_PASSWORD`        | Email password                       | No\*\*      | -                       |
+| `EMAIL_FROM`            | Sender email                         | No\*\*      | -                       |
+| `OPENAI_API_KEY`        | OpenAI API key                       | No\*\*\*    | -                       |
+| `OPENAI_MODEL`          | OpenAI model name                    | No          | `gpt-4o-mini`           |
+| `WEATHER_API_KEY`       | OpenWeatherMap API key               | No          | -                       |
+| `VNPAY_TMN_CODE`        | VNPay terminal code                  | Yes\*\*\*\* | -                       |
+| `VNPAY_HASH_SECRET`     | VNPay hash secret                    | Yes\*\*\*\* | -                       |
+| `VNPAY_URL`             | VNPay payment URL                    | Yes\*\*\*\* | -                       |
+| `VNPAY_RETURN_URL`      | VNPay callback URL                   | Yes\*\*\*\* | -                       |
 
 \* Required for image uploads  
 \*\* Required for email notifications  
@@ -426,10 +441,10 @@ QuanLyKhachSan/
 
 ### Frontend Environment Variables
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `VITE_API_URL` | Backend API URL | Yes | `http://localhost:2409/api` |
-| `VITE_MAPBOX_TOKEN` | Mapbox access token | Yes* | - |
+| Variable            | Description         | Required | Default                     |
+| ------------------- | ------------------- | -------- | --------------------------- |
+| `VITE_API_URL`      | Backend API URL     | Yes      | `http://localhost:2409/api` |
+| `VITE_MAPBOX_TOKEN` | Mapbox access token | Yes\*    | -                           |
 
 \* Required for map features
 
@@ -438,6 +453,7 @@ QuanLyKhachSan/
 ## 📚 API Documentation
 
 ### Base URL
+
 ```
 http://localhost:2409/api
 ```
@@ -445,6 +461,7 @@ http://localhost:2409/api
 ### Authentication Endpoints
 
 #### Register
+
 ```http
 POST /auth/register
 Content-Type: application/json
@@ -458,6 +475,7 @@ Content-Type: application/json
 ```
 
 #### Login
+
 ```http
 POST /auth/login
 Content-Type: application/json
@@ -469,6 +487,7 @@ Content-Type: application/json
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -487,6 +506,7 @@ Response:
 ### Room Endpoints
 
 #### Search Rooms
+
 ```http
 GET /rooms?
   location=Hanoi&
@@ -502,6 +522,7 @@ GET /rooms?
 ```
 
 #### Get Room Details
+
 ```http
 GET /rooms/:id
 ```
@@ -509,6 +530,7 @@ GET /rooms/:id
 ### Booking Endpoints
 
 #### Create Booking
+
 ```http
 POST /bookings
 Authorization: Bearer {token}
@@ -527,6 +549,7 @@ Content-Type: application/json
 ```
 
 #### Get My Bookings
+
 ```http
 GET /bookings
 Authorization: Bearer {token}
@@ -535,6 +558,7 @@ Authorization: Bearer {token}
 ### Payment Endpoints
 
 #### Create VNPay Payment
+
 ```http
 POST /payments/vnpay/create
 Authorization: Bearer {token}
@@ -549,6 +573,7 @@ Content-Type: application/json
 ### AI Endpoints
 
 #### Chat with AI
+
 ```http
 POST /ai/chat
 Content-Type: application/json
@@ -560,6 +585,7 @@ Content-Type: application/json
 ```
 
 #### Get Personalized Recommendations
+
 ```http
 GET /ai/personalized-recommendations?limit=6
 Authorization: Bearer {token}
@@ -568,12 +594,14 @@ Authorization: Bearer {token}
 ### Admin Endpoints
 
 #### Dashboard Stats
+
 ```http
 GET /admin/dashboard/stats
 Authorization: Bearer {admin_token}
 ```
 
 #### Manage Users
+
 ```http
 GET /admin/users
 POST /admin/users
@@ -591,14 +619,18 @@ For complete API documentation, import `POSTMAN_COLLECTION.json` into Postman.
 ### VNPay Setup
 
 #### 1. Register for Sandbox Account
+
 Visit [VNPay Sandbox](https://sandbox.vnpayment.vn/apis/vnpay-demo/) and get your credentials:
+
 - Terminal ID (TMN Code)
 - Hash Secret
 - Payment URL
 - Return URL
 
 #### 2. Configure Environment Variables
+
 Add to `backend/.env`:
+
 ```env
 VNPAY_TMN_CODE=your_tmn_code
 VNPAY_HASH_SECRET=your_hash_secret
@@ -607,6 +639,7 @@ VNPAY_RETURN_URL=http://localhost:2409/api/payments/vnpay/return
 ```
 
 #### 3. Payment Flow
+
 1. User creates booking
 2. System generates VNPay payment URL
 3. User redirects to VNPay sandbox
@@ -616,11 +649,14 @@ VNPAY_RETURN_URL=http://localhost:2409/api/payments/vnpay/return
 7. User sees success/failed page with confetti animation
 
 #### 4. Test Cards
+
 Use VNPay sandbox test cards:
+
 - **NCB Bank**: Card `9704198526191432198` | Date `07/15` | OTP `123456`
 - Or use the payment simulation interface
 
 #### 5. Payment Methods Supported
+
 - 📱 **VNPAYQR**: QR Code payment
 - 🏦 **VNBANK**: Domestic ATM cards
 - 💳 **INTCARD**: International cards (VISA/MasterCard/JCB)
@@ -632,12 +668,14 @@ Use VNPay sandbox test cards:
 ### Seeding Database
 
 #### Import Sample Data
+
 ```bash
 cd backend
 npm run seed:import
 ```
 
 This creates:
+
 - **11 users** (1 admin, 10 regular users)
 - **3 hotels** (Hanoi, Ho Chi Minh, Da Nang)
 - **12 rooms** (various types and prices)
@@ -646,14 +684,17 @@ This creates:
 - **30 favorites**
 
 #### Delete All Data
+
 ```bash
 npm run seed:destroy
 ```
 
 #### Import & Sync (Recommended)
+
 ```bash
 npm run seed:sync
 ```
+
 This imports data AND syncs room ratings with reviews.
 
 ### Manual Database Operations
@@ -772,6 +813,7 @@ sudo nano /etc/nginx/sites-available/hotel-api
 ```
 
 Nginx config:
+
 ```nginx
 server {
     listen 80;
@@ -833,12 +875,14 @@ location / {
 ### Environment Variables for Production
 
 **Backend**:
+
 - Update `FRONTEND_URL` to your production frontend URL
 - Update `VNPAY_RETURN_URL` to your production API URL
 - Use MongoDB Atlas for database
 - Use production API keys (Cloudinary, OpenAI, etc.)
 
 **Frontend**:
+
 - Update `VITE_API_URL` to your production backend URL
 
 ---
@@ -850,6 +894,7 @@ location / {
 #### Backend won't start
 
 **Issue**: Port 2409 already in use
+
 ```bash
 # Find and kill process
 lsof -ti:2409 | xargs kill -9  # macOS/Linux
@@ -858,6 +903,7 @@ taskkill /PID <pid> /F         # Windows (kill process)
 ```
 
 **Issue**: MongoDB connection failed
+
 ```bash
 # Check if MongoDB is running
 sudo systemctl status mongod   # Linux
@@ -873,6 +919,7 @@ net start MongoDB              # Windows
 #### Frontend build errors
 
 **Issue**: Module not found
+
 ```bash
 cd frontend
 rm -rf node_modules package-lock.json
@@ -880,6 +927,7 @@ npm install
 ```
 
 **Issue**: Environment variables not loaded
+
 - Ensure `.env` file exists in `frontend/` directory
 - Variable names must start with `VITE_`
 - Restart dev server after changing `.env`
@@ -887,11 +935,13 @@ npm install
 #### Payment issues
 
 **Issue**: VNPay returns "Merchant not valid"
+
 - Verify TMN Code and Hash Secret are correct
 - Check if sandbox account is active
 - Ensure return URL is accessible
 
 **Issue**: Payment success but redirects to failed page
+
 - Check backend logs for errors
 - Ensure FRONTEND_URL is set correctly
 - Verify email configuration (non-critical)
@@ -899,6 +949,7 @@ npm install
 #### Database issues
 
 **Issue**: Seeder fails with validation error
+
 ```bash
 # Clear database and try again
 cd backend
@@ -907,6 +958,7 @@ npm run seed:import
 ```
 
 **Issue**: Duplicate key error
+
 ```bash
 # Drop indexes
 mongo
@@ -923,16 +975,18 @@ npm run seed:import
 Enable detailed logging:
 
 **Backend**:
+
 ```env
 NODE_ENV=development
 DEBUG=express:*
 ```
 
 **Frontend**:
+
 ```javascript
 // In axiosClient.js
-console.log('Request:', config);
-console.log('Response:', response);
+console.log("Request:", config);
+console.log("Response:", response);
 ```
 
 ### Getting Help
@@ -1010,7 +1064,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👥 Authors
 
-- **Nguyen Anh** - *Initial work* - [GitHub](https://github.com/nguyeenxahndev)
+- **Nguyen Anh** - _Initial work_ - [GitHub](https://github.com/nguyeenxahndev)
 
 ---
 

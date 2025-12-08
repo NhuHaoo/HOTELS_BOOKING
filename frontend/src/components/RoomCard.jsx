@@ -113,7 +113,7 @@ const RoomCard = ({
       className="group block bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden transform hover:-translate-y-2"
     >
       {/* Image Container */}
-      <div className="relative h-56 overflow-hidden bg-gray-200">
+      <div className="relative h-48 overflow-hidden bg-gray-200">
         {/* Image */}
         <img
           src={room.images?.[0] || '/placeholder-room.jpg'}
@@ -198,7 +198,7 @@ const RoomCard = ({
       </div>
 
       {/* Content */}
-      <div className="p-5">
+      <div className="p-4">
         {/* Location & Hotel */}
         {room.hotelId && (
           <div className="flex items-center justify-between mb-3">
@@ -216,13 +216,13 @@ const RoomCard = ({
         )}
 
         {/* Room Name */}
-        <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 min-h-[3.5rem] group-hover:text-primary transition-colors">
+        <h3 className="text-base font-bold text-gray-900 mb-2 line-clamp-2 min-h-[2.5rem] group-hover:text-primary transition-colors">
           {room.name}
         </h3>
 
         {/* Hotel Name */}
         {room.hotelId && (
-          <p className="text-sm text-gray-600 mb-3 line-clamp-1">
+          <p className="text-xs text-gray-600 mb-2 line-clamp-1">
             {room.hotelId.name}
           </p>
         )}
@@ -230,15 +230,15 @@ const RoomCard = ({
         {/* Room Type */}
         {room.roomType && (
           <div className="mb-2">
-            <span className="inline-flex items-center gap-1 text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold">
-              <FaBed className="text-xs" />
+            <span className="inline-flex items-center gap-1 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">
+              <FaBed className="text-[10px]" />
               {getRoomTypeLabel(room.roomType)}
             </span>
           </div>
         )}
 
         {/* ⭐ Room Info: Tối đa X người lớn, Y trẻ em + diện tích */}
-        <div className="flex items-center gap-4 text-xs text-gray-600 mb-4 flex-wrap">
+        <div className="flex items-center gap-3 text-xs text-gray-600 mb-3 flex-wrap">
           {(maxAdults || maxChildren) && (
             <div className="flex items-center gap-1">
               <FaUsers className="text-gray-400" />
@@ -286,17 +286,17 @@ const RoomCard = ({
         )}
 
         {/* Amenities */}
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="flex flex-wrap gap-1.5 mb-3">
           {room.amenities?.slice(0, 2).map((amenity, index) => (
             <span
               key={index}
-              className="text-xs bg-blue-50 text-primary px-3 py-1.5 rounded-full font-medium"
+              className="text-xs bg-blue-50 text-primary px-2 py-1 rounded-full font-medium"
             >
               {amenity}
             </span>
           ))}
           {room.amenities?.length > 2 && (
-            <span className="text-xs bg-gray-100 text-gray-700 px-3 py-1.5 rounded-full font-medium">
+            <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full font-medium">
               +{room.amenities.length - 2} tiện nghi
             </span>
           )}
@@ -304,12 +304,12 @@ const RoomCard = ({
 
         {/* Reviews */}
         {room.totalReviews > 0 && (
-          <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
+          <div className="flex items-center gap-1.5 mb-3 text-xs text-gray-600">
             <div className="flex">
               {[...Array(5)].map((_, i) => (
                 <FaStar
                   key={i}
-                  className={`text-xs ${
+                  className={`text-[10px] ${
                     i < Math.floor(room.rating)
                       ? 'text-yellow-400'
                       : 'text-gray-300'
@@ -322,21 +322,21 @@ const RoomCard = ({
         )}
 
         {/* Price & CTA */}
-        <div className="flex items-end justify-between pt-4 border-t border-gray-100">
+        <div className="flex items-end justify-between pt-3 border-t border-gray-100">
           <div className="flex-1">
             {room.discount > 0 && (
-              <p className="text-sm text-gray-400 line-through mb-1">
+              <p className="text-xs text-gray-400 line-through mb-0.5">
                 {formatPrice(room.price)}
               </p>
             )}
             <div className="flex items-baseline gap-1">
-              <p className="text-2xl font-black text-accent">
+              <p className="text-xl font-black text-accent">
                 {formatPrice(room.finalPrice || room.price)}
               </p>
               <span className="text-xs text-gray-500">/ đêm</span>
             </div>
           </div>
-          <button className="bg-gradient-to-r from-primary to-primary-dark text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:shadow-lg transform hover:scale-105 transition-all duration-300 whitespace-nowrap">
+          <button className="bg-gradient-to-r from-primary to-primary-dark text-white px-4 py-2 rounded-lg font-semibold text-xs hover:shadow-lg transform hover:scale-105 transition-all duration-300 whitespace-nowrap">
             Đặt ngay
           </button>
         </div>

@@ -30,5 +30,15 @@ export const hotelAPI = {
   deleteHotel: (id) => {
     return axiosClient.delete(`/hotels/${id}`);
   },
+
+  // Admin: Update hotel status
+  updateHotelStatus: (id, data) => {
+    return axiosClient.put(`/hotels/${id}/status`, data);
+  },
+
+  // Admin/Manager: Toggle hotel active status
+  toggleHotelActive: (id) => {
+    return axiosClient.put(`/hotels/${id}/toggle-active`);
+  },
 };
 

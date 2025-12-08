@@ -77,6 +77,21 @@ const bookingSchema = new mongoose.Schema({
     min: 0
   },
 
+  // Tổng tiền cuối cùng của booking (bao gồm phí đổi lịch, phụ thu, trừ giảm giá)
+  totalAmount: {
+    type: Number,
+    default: function() {
+      return this.finalTotal || this.totalPrice || 0;
+    }
+  },
+
+  // Tổng số tiền đã thanh toán thành công
+  paidAmount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+
   // Tham chiếu tới bảng Promotion (nếu có dùng mã giảm giá / khuyến mãi)
   promotionId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -142,10 +157,18 @@ const bookingSchema = new mongoose.Schema({
   cancelReason: {
     type: String
   },
+  cancellationFee: {
+    type: Number,
+    default: 0
+  },
+  refundAmount: {
+    type: Number,
+    default: 0
+  },
   cancellationPolicy: {
     freeCancellationDays: {
       type: Number,
-      default: 1
+      default: 3
     },
     cancellationFee: {
       type: Number,
@@ -163,12 +186,45 @@ const bookingSchema = new mongoose.Schema({
     },
     rescheduleFee: {
       type: Number,
-      default: 0
+      default: 20 // Phí đổi lịch 20%
     },
     allowed: {
       type: Boolean,
       default: true
     }
+  },
+  // Thông tin đổi lịch
+  rescheduledAt: {
+    type: Date
+  },
+  rescheduleInfo: {
+    oldCheckIn: Date,
+    oldCheckOut: Date,
+    newCheckIn: Date,
+    newCheckOut: Date,
+    isFreeReschedule: Boolean,
+    freeRescheduleDays: Number,
+    rescheduleFee: Number,
+    priceDifference: Number,
+    additionalPayment: Number,
+    oldTotalPrice: Number,
+    newTotalPrice: Number
+  },
+  // Payment cho đổi lịch (khi có chênh lệch giá hoặc phí đổi lịch)
+  reschedulePayment: {
+    amount: {
+      type: Number,
+      default: 0
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'paid', 'cancelled'],
+      default: null
+    },
+    transactionId: String,
+    paymentDate: Date,
+    createdAt: Date,
+    paidAt: Date
   },
   createdAt: {
     type: Date,

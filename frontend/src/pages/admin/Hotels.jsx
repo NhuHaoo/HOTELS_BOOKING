@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { hotelAPI } from '../../api/hotel.api';
 import Loading from '../../components/Loading';
 import toast from 'react-hot-toast';
-import { FaPlus, FaEdit, FaTrash, FaStar, FaSearch, FaMapMarkerAlt, FaTimes } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash, FaStar, FaSearch, FaMapMarkerAlt, FaTimes, FaHotel, FaBan, FaCheckCircle, FaExclamationTriangle, FaToggleOn, FaToggleOff } from 'react-icons/fa';
 import { HOTEL_AMENITIES } from '../../utils/constants';
 
 const Hotels = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCity, setFilterCity] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [editingHotel, setEditingHotel] = useState(null);
@@ -23,10 +24,17 @@ const Hotels = () => {
     rating: 5,
     images: [],
     amenities: [],
-    policies: {
       checkInTime: '14:00',
       checkOutTime: '12:00',
-      cancellationPolicy: '',
+    cancellationPolicy: {
+      freeCancellationDays: 3,
+      cancellationFee: 0,
+      refundable: true,
+    },
+    reschedulePolicy: {
+      freeRescheduleDays: 3,
+      rescheduleFee: 10,
+      allowed: true,
     },
     location: {
       type: 'Point',
@@ -36,13 +44,26 @@ const Hotels = () => {
 
   // Fetch hotels
   const { data: hotelsData, isLoading, isError, error } = useQuery({
-    queryKey: ['admin-hotels', page, searchTerm, filterCity],
-    queryFn: () => hotelAPI.getHotels({
+    queryKey: ['admin-hotels', page, searchTerm, filterCity, statusFilter],
+    queryFn: () => {
+      const params = {
       page,
       limit: 10,
-      search: searchTerm,
-      city: filterCity,
-    }),
+      };
+      
+      // Only include non-empty filters
+      if (searchTerm && searchTerm.trim()) {
+        params.search = searchTerm.trim();
+      }
+      if (filterCity && filterCity.trim()) {
+        params.city = filterCity.trim();
+      }
+      if (statusFilter && statusFilter.trim()) {
+        params.status = statusFilter.trim();
+      }
+      
+      return hotelAPI.getHotels(params);
+    },
   });
 
   // Create hotel mutation
@@ -83,6 +104,30 @@ const Hotels = () => {
     },
   });
 
+  // Update hotel status mutation
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status, violationReason }) => hotelAPI.updateHotelStatus(id, { status, violationReason }),
+    onSuccess: () => {
+      toast.success('Cập nhật trạng thái khách sạn thành công!');
+      queryClient.invalidateQueries(['admin-hotels']);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Cập nhật trạng thái thất bại');
+    },
+  });
+
+  // Toggle hotel active mutation
+  const toggleActiveMutation = useMutation({
+    mutationFn: (id) => hotelAPI.toggleHotelActive(id),
+    onSuccess: () => {
+      toast.success('Cập nhật trạng thái thành công!');
+      queryClient.invalidateQueries(['admin-hotels']);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Cập nhật trạng thái thất bại');
+    },
+  });
+
   const openCreateModal = () => {
     setEditingHotel(null);
     setFormData({
@@ -95,10 +140,17 @@ const Hotels = () => {
       rating: 5,
       images: [],
       amenities: [],
-      policies: {
         checkInTime: '14:00',
         checkOutTime: '12:00',
-        cancellationPolicy: '',
+      cancellationPolicy: {
+        freeCancellationDays: 3,
+        cancellationFee: 0,
+        refundable: true,
+      },
+      reschedulePolicy: {
+        freeRescheduleDays: 3,
+        rescheduleFee: 0,
+        allowed: true,
       },
       location: {
         type: 'Point',
@@ -120,10 +172,17 @@ const Hotels = () => {
       rating: hotel.rating || 5,
       images: hotel.images || [],
       amenities: hotel.amenities || [],
-      policies: hotel.policies || {
-        checkInTime: '14:00',
-        checkOutTime: '12:00',
-        cancellationPolicy: '',
+      checkInTime: hotel.checkInTime || '14:00',
+      checkOutTime: hotel.checkOutTime || '12:00',
+      cancellationPolicy: hotel.cancellationPolicy || {
+        freeCancellationDays: 3,
+        cancellationFee: 0,
+        refundable: true,
+      },
+      reschedulePolicy: hotel.reschedulePolicy || {
+        freeRescheduleDays: 3,
+        rescheduleFee: 0,
+        allowed: true,
       },
       location: hotel.location || {
         type: 'Point',
@@ -159,6 +218,11 @@ const Hotels = () => {
   };
 
   const [customAmenity, setCustomAmenity] = useState('');
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, filterCity, statusFilter]);
 
   const toggleAmenity = (amenityValue) => {
     const currentAmenities = formData.amenities || [];
@@ -223,7 +287,7 @@ const Hotels = () => {
 
       {/* Filters */}
       <div className="card p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="relative">
             <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
@@ -241,6 +305,17 @@ const Hotels = () => {
             onChange={(e) => setFilterCity(e.target.value)}
             className="input"
           />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="input"
+          >
+            <option value="">Tất cả trạng thái</option>
+            <option value="active">Đang hoạt động</option>
+            <option value="suspended">Tạm khóa</option>
+            <option value="violation">Vi phạm</option>
+            <option value="inactive">Không hoạt động</option>
+          </select>
         </div>
       </div>
 
@@ -292,6 +367,28 @@ const Hotels = () => {
                 <span>{hotel.totalReviews || 0} đánh giá</span>
               </div>
 
+              {/* Status Badge */}
+              <div className="mb-3">
+                {hotel.status === 'active' && hotel.isActive ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <FaCheckCircle /> Đang hoạt động
+                  </span>
+                ) : hotel.status === 'suspended' ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                    <FaBan /> Tạm khóa
+                  </span>
+                ) : hotel.status === 'violation' ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                    <FaExclamationTriangle /> Vi phạm
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                    <FaToggleOff /> Không hoạt động
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-col space-y-2">
               <div className="flex space-x-2">
                 <button
                   onClick={() => openEditModal(hotel)}
@@ -300,12 +397,73 @@ const Hotels = () => {
                   <FaEdit className="mr-1" />
                   Sửa
                 </button>
+                  <button
+                    onClick={() => toggleActiveMutation.mutate(hotel._id)}
+                    className={`btn btn-outline btn-sm ${
+                      hotel.isActive 
+                        ? 'text-yellow-600 hover:bg-yellow-50' 
+                        : 'text-green-600 hover:bg-green-50'
+                    }`}
+                    disabled={toggleActiveMutation.isPending}
+                  >
+                    {hotel.isActive ? <FaToggleOn /> : <FaToggleOff />}
+                  </button>
                 <button
                   onClick={() => handleDelete(hotel._id)}
                   className="btn btn-outline btn-sm text-red-600 hover:bg-red-50"
                 >
                   <FaTrash />
                 </button>
+                </div>
+                
+                {/* Status Management Buttons (Admin only) */}
+                <div className="flex space-x-1">
+                  {hotel.status !== 'active' && (
+                    <button
+                      onClick={() => updateStatusMutation.mutate({ 
+                        id: hotel._id, 
+                        status: 'active' 
+                      })}
+                      className="flex-1 btn btn-outline btn-xs text-green-600 hover:bg-green-50"
+                      disabled={updateStatusMutation.isPending}
+                    >
+                      <FaCheckCircle className="mr-1" />
+                      Kích hoạt
+                    </button>
+                  )}
+                  {hotel.status !== 'suspended' && (
+                    <button
+                      onClick={() => updateStatusMutation.mutate({ 
+                        id: hotel._id, 
+                        status: 'suspended' 
+                      })}
+                      className="flex-1 btn btn-outline btn-xs text-yellow-600 hover:bg-yellow-50"
+                      disabled={updateStatusMutation.isPending}
+                    >
+                      <FaBan className="mr-1" />
+                      Khóa
+                    </button>
+                  )}
+                  {hotel.status !== 'violation' && (
+                    <button
+                      onClick={() => {
+                        const reason = window.prompt('Nhập lý do vi phạm:');
+                        if (reason) {
+                          updateStatusMutation.mutate({ 
+                            id: hotel._id, 
+                            status: 'violation',
+                            violationReason: reason
+                          });
+                        }
+                      }}
+                      className="flex-1 btn btn-outline btn-xs text-red-600 hover:bg-red-50"
+                      disabled={updateStatusMutation.isPending}
+                    >
+                      <FaExclamationTriangle className="mr-1" />
+                      Vi phạm
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -429,10 +587,10 @@ const Hotels = () => {
                   <label className="block text-sm font-medium mb-2">Giờ nhận phòng</label>
                   <input
                     type="time"
-                    value={formData.policies.checkInTime}
+                    value={formData.checkInTime}
                     onChange={(e) => setFormData({
                       ...formData,
-                      policies: { ...formData.policies, checkInTime: e.target.value }
+                      checkInTime: e.target.value
                     })}
                     className="input"
                   />
@@ -442,26 +600,143 @@ const Hotels = () => {
                   <label className="block text-sm font-medium mb-2">Giờ trả phòng</label>
                   <input
                     type="time"
-                    value={formData.policies.checkOutTime}
+                    value={formData.checkOutTime}
                     onChange={(e) => setFormData({
                       ...formData,
-                      policies: { ...formData.policies, checkOutTime: e.target.value }
+                      checkOutTime: e.target.value
                     })}
                     className="input"
                   />
                 </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-2">Chính sách hủy phòng</label>
-                  <textarea
-                    value={formData.policies.cancellationPolicy}
+                {/* Chính sách hủy phòng */}
+                <div className="md:col-span-2 border-t pt-4 mt-4">
+                  <h3 className="text-lg font-semibold mb-3">Chính sách hủy phòng</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Số ngày hủy miễn phí
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.cancellationPolicy?.freeCancellationDays || 3}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          cancellationPolicy: {
+                            ...formData.cancellationPolicy,
+                            freeCancellationDays: parseInt(e.target.value) || 0
+                          }
+                        })}
+                        className="input"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Số ngày trước check-in</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Phí hủy (VNĐ)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.cancellationPolicy?.cancellationFee || 0}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          cancellationPolicy: {
+                            ...formData.cancellationPolicy,
+                            cancellationFee: parseFloat(e.target.value) || 0
+                          }
+                        })}
+                        className="input"
+                        disabled
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Tự động tính: 50% tổng tiền đã thanh toán khi hủy trong vòng 3 ngày (hoàn lại 50%)</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Có hoàn tiền
+                      </label>
+                      <select
+                        value={formData.cancellationPolicy?.refundable ? 'true' : 'false'}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          cancellationPolicy: {
+                            ...formData.cancellationPolicy,
+                            refundable: e.target.value === 'true'
+                          }
+                        })}
+                        className="input"
+                      >
+                        <option value="true">Có</option>
+                        <option value="false">Không</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chính sách đổi lịch */}
+                <div className="md:col-span-2 border-t pt-4 mt-4">
+                  <h3 className="text-lg font-semibold mb-3">Chính sách đổi lịch</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Số ngày đổi miễn phí
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.reschedulePolicy?.freeRescheduleDays || 3}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          reschedulePolicy: {
+                            ...formData.reschedulePolicy,
+                            freeRescheduleDays: parseInt(e.target.value) || 0
+                          }
+                        })}
+                        className="input"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Số ngày trước check-in</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Phí đổi lịch (%)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={formData.reschedulePolicy?.rescheduleFee || 10}
                     onChange={(e) => setFormData({
                       ...formData,
-                      policies: { ...formData.policies, cancellationPolicy: e.target.value }
+                          reschedulePolicy: {
+                            ...formData.reschedulePolicy,
+                            rescheduleFee: parseFloat(e.target.value) || 10
+                          }
                     })}
                     className="input"
-                    rows="2"
-                  />
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Phí đổi lịch khi đổi trong vòng 3 ngày (mặc định: 10%)</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Cho phép đổi lịch
+                      </label>
+                      <select
+                        value={formData.reschedulePolicy?.allowed ? 'true' : 'false'}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          reschedulePolicy: {
+                            ...formData.reschedulePolicy,
+                            allowed: e.target.value === 'true'
+                          }
+                        })}
+                        className="input"
+                      >
+                        <option value="true">Có</option>
+                        <option value="false">Không</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
 
                 <div>

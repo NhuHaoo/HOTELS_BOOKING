@@ -127,14 +127,14 @@ exports.createBooking = async (req, res) => {
 
     // Get cancellation and reschedule policies from hotel
     const cancellationPolicy = room.hotelId?.cancellationPolicy || {
-      freeCancellationDays: 1,
+      freeCancellationDays: 3,
       cancellationFee: 0,
       refundable: true
     };
 
     const reschedulePolicy = room.hotelId?.reschedulePolicy || {
       freeRescheduleDays: 3, // Default 3 days
-      rescheduleFee: 0,
+      rescheduleFee: 10, // 10% phí đổi lịch
       allowed: true
     };
 
@@ -156,6 +156,8 @@ exports.createBooking = async (req, res) => {
       originalTotal,         // giá gốc
       discountAmount: appliedDiscount,
       finalTotal,            // giá sau giảm
+      totalAmount: finalTotal, // Tổng tiền cuối cùng (ban đầu = finalTotal)
+      paidAmount: 0,         // Chưa thanh toán
       promotionId: promotionId || null,
       promotionCode: promotionCode || null,
 
@@ -213,7 +215,7 @@ exports.getMyBookings = async (req, res) => {
       .skip(startIndex)
       .lean();
 
-    // Check if each booking has been reviewed
+    // Check if each booking has been reviewed and ensure totalAmount/paidAmount
     const Review = require('../models/Review');
     const bookingsWithReviewStatus = await Promise.all(
       bookings.map(async (booking) => {
@@ -221,9 +223,49 @@ exports.getMyBookings = async (req, res) => {
           bookingId: booking._id,
           userId: req.user.id
         });
+        
+        // Đảm bảo totalAmount và paidAmount luôn có giá trị đúng
+        // Nếu chưa có hoặc = 0, tính lại từ finalTotal/totalPrice
+        let totalAmount = booking.totalAmount;
+        let paidAmount = booking.paidAmount;
+        
+        // Nếu totalAmount chưa có hoặc = 0, dùng finalTotal hoặc totalPrice
+        if (!totalAmount || totalAmount === 0) {
+          totalAmount = booking.finalTotal || booking.totalPrice || 0;
+        }
+        
+        // Xử lý paidAmount:
+        // - Nếu paymentStatus = 'paid' và paidAmount chưa có, set paidAmount = totalAmount
+        // - Nếu paymentStatus = 'refunded' và paidAmount chưa có, giữ nguyên totalAmount (đã hoàn tiền)
+        // - Nếu paidAmount = null/undefined và paymentStatus = 'paid', set paidAmount = totalAmount
+        if (paidAmount === null || paidAmount === undefined) {
+          if (booking.paymentStatus === 'paid') {
+            // Booking đã thanh toán nhưng paidAmount chưa có → set = totalAmount
+            paidAmount = totalAmount;
+          } else if (booking.paymentStatus === 'refunded') {
+            // Booking đã hoàn tiền → paidAmount = totalAmount (đã trả đủ, sau đó hoàn lại)
+            paidAmount = totalAmount;
+          } else {
+            // Chưa thanh toán
+            paidAmount = 0;
+          }
+        }
+        
+        // Đảm bảo paidAmount không bao giờ > totalAmount
+        if (paidAmount > totalAmount) {
+          paidAmount = totalAmount;
+        }
+        
+        // Đảm bảo paidAmount không bao giờ âm
+        if (paidAmount < 0) {
+          paidAmount = 0;
+        }
+        
         return {
           ...booking,
-          hasReviewed: !!hasReview
+          hasReviewed: !!hasReview,
+          totalAmount,
+          paidAmount
         };
       })
     );
@@ -327,22 +369,34 @@ exports.cancelBooking = async (req, res) => {
     const now = new Date();
     const daysDiff = getDaysDiff(now, booking.checkIn);
 
-    const freeCancellationDays =
-      booking.cancellationPolicy?.freeCancellationDays || 1;
+    const freeCancellationDays = booking.cancellationPolicy?.freeCancellationDays || 3;
 
-    if (daysDiff < freeCancellationDays) {
-      return res.status(400).json({
-        success: false,
-        message: `Không thể hủy đặt phòng trong vòng ${freeCancellationDays} ngày trước ngày nhận phòng`
-      });
+    // Tính phí hủy theo chính sách mới
+    let cancellationFee = 0;
+    let refundAmount = 0;
+    let cancellationMessage = '';
+
+    if (daysDiff >= freeCancellationDays) {
+      // Hủy trước 3 ngày → miễn phí (hoàn tiền đầy đủ)
+      cancellationFee = 0;
+      refundAmount = booking.finalTotal || booking.totalPrice;
+      cancellationMessage = 'Hủy miễn phí, hoàn tiền đầy đủ';
+    } else {
+      // Hủy trong vòng 3 ngày → Mất phí 50% và hoàn lại 50% tổng tiền đã thanh toán
+      const totalPaid = booking.finalTotal || booking.totalPrice;
+      cancellationFee = totalPaid * 0.5; // Mất phí 50%
+      refundAmount = totalPaid * 0.5; // Hoàn lại 50%
+      cancellationMessage = `Mất phí 50% (${cancellationFee.toLocaleString('vi-VN')} VNĐ). Hoàn lại 50%: ${refundAmount.toLocaleString('vi-VN')} VNĐ`;
     }
 
     booking.bookingStatus = 'cancelled';
     booking.cancelledAt = Date.now();
     booking.cancelReason = req.body.reason || 'Cancelled by user';
+    booking.cancellationFee = cancellationFee;
+    booking.refundAmount = refundAmount;
 
     if (booking.paymentStatus === 'paid') {
-      booking.paymentStatus = 'refunded';
+      booking.paymentStatus = refundAmount > 0 ? 'refunded' : 'cancelled';
     }
 
     await booking.save();
@@ -352,8 +406,12 @@ exports.cancelBooking = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Booking cancelled successfully',
-      data: booking
+      message: cancellationMessage || 'Booking cancelled successfully',
+      data: {
+        ...booking.toObject(),
+        cancellationFee,
+        refundAmount
+      }
     });
   } catch (error) {
     console.error('Cancel booking error:', error);
@@ -521,8 +579,8 @@ exports.rescheduleBooking = async (req, res) => {
 
     // Kiểm tra xem còn bao nhiêu ngày nữa đến ngày check-in cũ
     const daysBeforeOldCheckIn = getDaysDiff(today, booking.checkIn);
-    const isFreeReschedule =
-      daysBeforeOldCheckIn >= (reschedulePolicy.freeRescheduleDays || 3);
+    const freeRescheduleDays = reschedulePolicy.freeRescheduleDays || 3;
+    const isFreeReschedule = daysBeforeOldCheckIn >= freeRescheduleDays;
 
     // Kiểm tra trùng booking khác của cùng phòng ở ngày mới
     const overlapping = await Booking.findOne({
@@ -543,16 +601,68 @@ exports.rescheduleBooking = async (req, res) => {
 
     // Tính lại tổng tiền theo số đêm mới (dùng giá hiện tại của phòng)
     const room = await Room.findById(booking.roomId);
-    const nightlyPrice = room ? (room.finalPrice || room.price) : booking.totalPrice;
-    const nights = getDaysDiff(newCheckIn, newCheckOut);
-    const newTotalPrice = nightlyPrice * nights;
+    const pricePerNight = room ? (room.finalPrice || room.price) : (booking.originalTotal / Math.ceil((booking.checkOut - booking.checkIn) / (1000 * 60 * 60 * 24))) || booking.totalPrice;
+    const oldNights = Math.ceil((booking.checkOut - booking.checkIn) / (1000 * 60 * 60 * 24));
+    const newNights = getDaysDiff(newCheckIn, newCheckOut);
+    
+    // Tính theo công thức mới: Quy tắc A
+    const roomBaseOld = booking.originalTotal || (pricePerNight * oldNights); // Giá gốc trước giảm
+    const discount = booking.discountAmount || 0; // Số tiền giảm giá đã áp dụng
+    const discountPercent = roomBaseOld > 0 ? (discount / roomBaseOld) * 100 : 0;
+    
+    const roomTotalNew = pricePerNight * newNights; // Giá phòng mới
+    
+    // Tính phí đổi lịch: changeFee = changeFeePercent% × roomBaseOld (tổng tiền phòng gốc)
+    // changeFeePercent từ reschedulePolicy (mặc định 10%)
+    const changeFeePercent = booking.reschedulePolicy?.rescheduleFee || 10;
+    let changeFee = 0;
+    
+    if (isFreeReschedule) {
+      // Đổi trước 3 ngày → miễn phí
+      changeFee = 0;
+    } else {
+      // Đổi trong 3 ngày → thu phí theo % của roomBaseOld
+      changeFee = roomBaseOld * (changeFeePercent / 100);
+    }
+    
+    // Tổng mới: roomTotalNew + changeFee - discount
+    const total = roomTotalNew + changeFee - discount;
+    
+    // Số tiền đã thanh toán: roomBaseOld - discount
+    const alreadyPaid = roomBaseOld - discount;
+    
+    // Số tiền cần thanh toán thêm
+    const extraToPay = total - alreadyPaid;
+    
+    // Tính chênh lệch giá (để hiển thị thông báo)
+    const priceDifference = roomTotalNew - roomBaseOld;
+    
+    let rescheduleMessage = '';
+    if (isFreeReschedule) {
+      rescheduleMessage = 'Đổi lịch miễn phí';
+    } else {
+      rescheduleMessage = `Phí đổi lịch: ${changeFee.toLocaleString('vi-VN')} VNĐ (${changeFeePercent}% giá gốc)`;
+    }
+    
+    if (extraToPay > 0) {
+      rescheduleMessage += `. Tổng cần thanh toán thêm: ${extraToPay.toLocaleString('vi-VN')} VNĐ`;
+    } else if (extraToPay < 0) {
+      rescheduleMessage += `. Số tiền sẽ được hoàn lại: ${Math.abs(extraToPay).toLocaleString('vi-VN')} VNĐ`;
+    }
 
     const oldCheckIn = booking.checkIn;
     const oldCheckOut = booking.checkOut;
 
     booking.checkIn = newCheckIn;
     booking.checkOut = newCheckOut;
-    booking.totalPrice = newTotalPrice;
+    booking.totalPrice = roomTotalNew; // Giá phòng mới
+    booking.finalTotal = total; // Tổng mới bao gồm phí đổi và trừ giảm giá
+    booking.totalAmount = total; // Cập nhật tổng tiền cuối cùng
+    // KHÔNG cập nhật paidAmount - giữ nguyên số tiền đã thanh toán trước đó
+    // Đảm bảo paidAmount không bao giờ > totalAmount
+    if (booking.paidAmount > total) {
+      booking.paidAmount = total;
+    }
     booking.rescheduledAt = new Date();
     booking.rescheduleInfo = {
       oldCheckIn,
@@ -560,18 +670,48 @@ exports.rescheduleBooking = async (req, res) => {
       newCheckIn,
       newCheckOut,
       isFreeReschedule,
-      freeRescheduleDays: reschedulePolicy.freeRescheduleDays || 3,
-      rescheduleFee: reschedulePolicy.rescheduleFee || 0
+      freeRescheduleDays,
+      rescheduleFee: changeFee, // Giữ tên cũ để tương thích
+      changeFee, // Tên mới
+      priceDifference,
+      additionalPayment: extraToPay > 0 ? extraToPay : 0, // Giữ tên cũ để tương thích
+      extraToPay, // Tên mới
+      oldTotalPrice: roomBaseOld,
+      newTotalPrice: roomTotalNew,
+      roomBaseOld,
+      roomTotalNew,
+      discount,
+      discountPercent,
+      total,
+      alreadyPaid
     };
+
+    // Lưu thông tin payment pending cho reschedule nếu có tiền cần thanh toán
+    if (extraToPay > 0) {
+      booking.reschedulePayment = {
+        amount: extraToPay,
+        status: 'pending',
+        createdAt: new Date()
+      };
+    } else {
+      // Nếu không có tiền cần thanh toán, xóa reschedulePayment
+      booking.reschedulePayment = null;
+    }
 
     await booking.save();
 
     return res.status(200).json({
       success: true,
-      message: isFreeReschedule
-        ? 'Đổi lịch thành công (miễn phí).'
-        : 'Đổi lịch thành công, có thể phát sinh phí theo chính sách khách sạn.',
-      data: booking
+      message: rescheduleMessage || 'Đổi lịch thành công',
+      data: {
+        ...booking.toObject(),
+        rescheduleFee: changeFee, // Giữ tên cũ để tương thích
+        changeFee, // Tên mới
+        priceDifference,
+        additionalPayment: extraToPay > 0 ? extraToPay : 0, // Giữ tên cũ để tương thích
+        extraToPay, // Tên mới
+        refundAmount: extraToPay < 0 ? Math.abs(extraToPay) : 0
+      }
     });
   } catch (error) {
     console.error('Reschedule booking error:', error);

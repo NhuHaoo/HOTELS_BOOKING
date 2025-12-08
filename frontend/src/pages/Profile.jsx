@@ -5,9 +5,10 @@ import { bookingAPI } from '../api/booking.api';
 import { reviewAPI } from '../api/review.api';
 import useAuthStore from '../store/useAuthStore';
 import { formatPrice } from '../utils/formatPrice';
-import { formatDate } from '../utils/dateUtils';
+import { formatDate, calculateNights } from '../utils/dateUtils';
 import { Link } from 'react-router-dom';
 import { BOOKING_STATUS, PAYMENT_STATUS } from '../utils/constants';
+import { calcBookingMoney, getPaymentStatus } from '../utils/bookingCalculations';
 import toast from 'react-hot-toast';
 
 const Profile = () => {
@@ -108,7 +109,11 @@ const Profile = () => {
                   <div className="text-center py-12">Đang tải...</div>
                 ) : bookingsData?.data?.length > 0 ? (
                   <div className="space-y-4">
-                    {bookingsData.data.map((booking) => (
+                    {bookingsData.data.map((booking) => {
+                      // Dùng getPaymentStatus để tính trạng thái thanh toán
+                      const { total, outstanding, status } = getPaymentStatus(booking);
+                      
+                      return (
                       <div key={booking._id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                         <div className="flex items-start space-x-4">
                           <img
@@ -148,8 +153,56 @@ const Profile = () => {
                               </div>
                               <div>
                                 <span className="text-gray-600">Tổng tiền:</span>
-                                <span className="ml-2 font-semibold text-accent">{formatPrice(booking.totalPrice)}</span>
+                                  <span className="ml-2 font-semibold text-yellow-600">{formatPrice(total)}</span>
+                                </div>
                               </div>
+                              <div className="mt-2 space-y-2">
+                                {/* Trạng thái thanh toán chính */}
+                                <div className="text-sm">
+                                  {status === 'paid' && (
+                                    <span className="text-green-700 font-semibold">
+                                      Đã thanh toán
+                                    </span>
+                                  )}
+                                  {status === 'unpaid' && (
+                                    <span className="text-red-600 font-semibold">
+                                      Chưa thanh toán
+                                    </span>
+                                  )}
+                                  {status === 'partial' && (
+                                    <span className="text-orange-600 font-semibold">
+                                      Cần thanh toán thêm {formatPrice(outstanding)}
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                {/* Cảnh báo thanh toán đổi lịch */}
+                                {booking?.reschedulePayment?.status === 'pending' && 
+                                 booking?.reschedulePayment?.amount > 0 && (
+                                  <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3 text-sm">
+                                    <div className="flex items-start gap-2">
+                                      <span className="text-yellow-600 font-bold">⚠️</span>
+                                      <div className="flex-1">
+                                        <div className="font-semibold text-yellow-800 mb-1">
+                                          Cần thanh toán thêm cho đổi lịch
+                                        </div>
+                                        <div className="text-yellow-700">
+                                          Số tiền cần thanh toán: <span className="font-bold">{formatPrice(booking.reschedulePayment.amount)}</span>
+                                        </div>
+                                        {booking?.rescheduleInfo && (
+                                          <div className="mt-2 text-xs text-yellow-600 space-y-1">
+                                            {booking.rescheduleInfo.priceDifference > 0 && (
+                                              <div>• Chênh lệch giá phòng: +{formatPrice(booking.rescheduleInfo.priceDifference)}</div>
+                                            )}
+                                            {booking.rescheduleInfo.rescheduleFee > 0 && (
+                                              <div>• Phí đổi lịch: +{formatPrice(booking.rescheduleInfo.rescheduleFee)}</div>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
                             </div>
                             <div className="mt-3 flex items-center justify-between">
                               <Link
@@ -171,7 +224,8 @@ const Profile = () => {
                           </div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-12">

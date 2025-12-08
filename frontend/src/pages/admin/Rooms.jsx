@@ -265,32 +265,32 @@ const Rooms = () => {
 
       {/* Rooms Table */}
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-hidden">
+          <table className="w-full table-fixed">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="w-[20%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Phòng
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="w-[15%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Khách sạn
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="w-[10%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Loại
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="w-[12%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Giá
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="w-[12%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Đánh giá
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="w-[12%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Sức chứa
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="w-[9%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Trạng thái
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                <th className="w-[10%] px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                   Thao tác
                 </th>
               </tr>
@@ -321,40 +321,38 @@ const Rooms = () => {
               ) : (
                 roomsData?.data?.map((room) => (
                   <tr key={room._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-3">
+                    <td className="px-2 py-3">
+                      <div className="flex items-center space-x-2">
                         <img
                           src={room.images?.[0]}
                           alt={room.name}
-                          className="w-16 h-16 object-cover rounded-lg"
+                          className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
                         />
-                        <div>
-                          <div className="font-semibold">{room.name}</div>
-                          <div className="text-sm text-gray-500">
-                            {/* hiển thị rõ người lớn + trẻ em + diện tích */}
-                            {room.maxAdults ?? 0} NL • {room.maxChildren ?? 0} TE •{' '}
-                            {room.size}m²
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-sm truncate">{room.name}</div>
+                          <div className="text-xs text-gray-500 truncate">
+                            {room.maxAdults ?? 0} NL • {room.maxChildren ?? 0} TE • {room.size}m²
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm">{room.hotelId?.name || 'N/A'}</div>
-                      <div className="text-xs text-gray-500">{room.hotelId?.city}</div>
+                    <td className="px-2 py-3">
+                      <div className="text-xs truncate">{room.hotelId?.name || 'N/A'}</div>
+                      <div className="text-xs text-gray-500 truncate">{room.hotelId?.city}</div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="capitalize text-sm">{room.roomType}</span>
+                    <td className="px-2 py-3">
+                      <span className="capitalize text-xs truncate">{room.roomType}</span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="font-semibold">{formatPrice(room.price)}</div>
+                    <td className="px-2 py-3">
+                      <div className="font-semibold text-sm">{formatPrice(room.price)}</div>
                       {room.discount > 0 && (
                         <div className="text-xs text-red-500">-{room.discount}%</div>
                       )}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-2 py-3">
                       <div className="flex items-center">
-                        <FaStar className="text-yellow-500 mr-1" />
-                        <span className="font-semibold">
+                        <FaStar className="text-yellow-500 mr-1 flex-shrink-0" size={12} />
+                        <span className="font-semibold text-xs">
                           {room.rating?.toFixed(1) || 'N/A'}
                         </span>
                         <span className="text-xs text-gray-500 ml-1">
@@ -362,14 +360,14 @@ const Rooms = () => {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm">
+                    <td className="px-2 py-3">
+                      <span className="text-xs truncate">
                         Tối đa {room.maxAdults + (room.maxChildren || 0)} khách
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-2 py-3">
                       <span
-                        className={`px-2 py-1 text-xs rounded-full ${
+                        className={`px-2 py-0.5 text-xs rounded-full ${
                           room.availability
                             ? 'bg-green-100 text-green-800'
                             : 'bg-red-100 text-red-800'
@@ -378,19 +376,23 @@ const Rooms = () => {
                         {room.availability ? 'Còn phòng' : 'Hết phòng'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => openEditModal(room)}
-                        className="text-blue-600 hover:text-blue-800 mr-3"
-                      >
-                        <FaEdit />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(room._id)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <FaTrash />
-                      </button>
+                    <td className="px-2 py-3 text-right">
+                      <div className="flex justify-end space-x-1">
+                        <button
+                          onClick={() => openEditModal(room)}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          title="Sửa"
+                        >
+                          <FaEdit size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(room._id)}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                          title="Xóa"
+                        >
+                          <FaTrash size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

@@ -5,7 +5,8 @@ import {
   FaStar,
   FaChartBar,
   FaBars,
-  FaTimes
+  FaTimes,
+  FaBuilding
 } from 'react-icons/fa';
 import { useState } from 'react';
 import useAuthStore from '../store/useAuthStore';
@@ -23,11 +24,10 @@ const ManagerLayout = () => {
 
   const menuItems = [
     { path: '/manager/dashboard', icon: FaChartBar, label: 'Tổng quan' },
+    { path: '/manager/hotel', icon: FaBuilding, label: 'Thông tin khách sạn' },
     { path: '/manager/rooms', icon: FaHotel, label: 'Phòng của tôi' },
     { path: '/manager/bookings', icon: FaClipboardList, label: 'Đặt phòng' },
     { path: '/manager/reviews', icon: FaStar, label: 'Đánh giá' },
-   
-
   ];
 
   const isActive = (path) => {

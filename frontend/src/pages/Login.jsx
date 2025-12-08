@@ -180,9 +180,9 @@ const Login = () => {
 
           {/* Demo Accounts */}
           <div className="bg-gray-50 p-4 rounded-lg">
-            <p className="text-sm text-gray-600 mb-2 font-semibold">Tài khoản demo:</p>
+          {/*   <p className="text-sm text-gray-600 mb-2 font-semibold">Tài khoản demo:</p>
             <p className="text-xs text-gray-500">Admin: admin@example.com / admin123</p>
-            <p className="text-xs text-gray-500">User: user1@example.com / password123</p>
+            <p className="text-xs text-gray-500">User: user1@example.com / password123</p> */}
           </div>
         </form>
 

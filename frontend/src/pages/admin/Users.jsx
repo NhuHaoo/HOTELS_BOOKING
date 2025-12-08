@@ -167,71 +167,85 @@ const Users = () => {
 
       {/* Table */}
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-hidden">
+          <table className="w-full table-fixed">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left">Người dùng</th>
-                <th className="px-6 py-3 text-left">Email</th>
-                <th className="px-6 py-3 text-left">SĐT</th>
-                <th className="px-6 py-3 text-left">Vai trò</th>
-                <th className="px-6 py-3 text-left">Ngày tạo</th>
-                <th className="px-6 py-3 text-center">Số đặt phòng</th>
-                <th className="px-6 py-3 text-center">Thao tác</th>
+                <th className="w-[18%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Người dùng</th>
+                <th className="w-[20%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                <th className="w-[12%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">SĐT</th>
+                <th className="w-[15%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vai trò</th>
+                <th className="w-[12%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ngày tạo</th>
+                <th className="w-[10%] px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase">Số đặt phòng</th>
+                <th className="w-[13%] px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase">Thao tác</th>
               </tr>
             </thead>
 
             <tbody className="divide-y">
               {usersData?.data?.map((u) => (
                 <tr key={u._id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 font-semibold">{u.name}</td>
-                  <td className="px-6 py-4">{u.email}</td>
-                  <td className="px-6 py-4">{u.phone}</td>
+                  <td className="px-2 py-3">
+                    <div className="font-semibold text-sm truncate" title={u.name}>{u.name}</div>
+                  </td>
+                  <td className="px-2 py-3">
+                    <div className="text-xs truncate" title={u.email}>{u.email}</div>
+                  </td>
+                  <td className="px-2 py-3">
+                    <div className="text-xs truncate">{u.phone}</div>
+                  </td>
 
                   {/* ROLE DISPLAY FIXED */}
-                  <td className="px-6 py-4">
+                  <td className="px-2 py-3">
                     {u.role === 'admin' && (
-                      <span className="flex items-center text-red-500 font-semibold">
-                        <FaUserShield className="mr-1" /> Admin
+                      <span className="flex items-center text-red-500 font-semibold text-xs">
+                        <FaUserShield className="mr-1 flex-shrink-0" size={12} /> <span className="truncate">Admin</span>
                       </span>
                     )}
 
                     {u.role === 'manager' && (
-                      <span className="flex items-center text-blue-600 font-semibold">
-                        <FaUserTie className="mr-1" /> Manager
+                      <span className="flex items-center text-blue-600 font-semibold text-xs">
+                        <FaUserTie className="mr-1 flex-shrink-0" size={12} /> <span className="truncate">Manager</span>
                       </span>
                     )}
 
                     {u.role === 'user' && (
-                      <span className="flex items-center text-gray-600">
-                        <FaUser className="mr-1" /> Người dùng
+                      <span className="flex items-center text-gray-600 text-xs">
+                        <FaUser className="mr-1 flex-shrink-0" size={12} /> <span className="truncate">Người dùng</span>
                       </span>
                     )}
                   </td>
 
-                  <td className="px-6 py-4">{formatDate(u.createdAt)}</td>
-                  <td className="px-6 py-4 text-center">{u.totalBookings}</td>
+                  <td className="px-2 py-3">
+                    <div className="text-xs truncate">{formatDate(u.createdAt)}</div>
+                  </td>
+                  <td className="px-2 py-3 text-center">
+                    <span className="text-xs font-semibold">{u.totalBookings}</span>
+                  </td>
 
-                  <td className="px-6 py-4 flex justify-center gap-3">
-                    {u.role !== 'manager' && (
+                  <td className="px-2 py-3">
+                    <div className="flex justify-center gap-2">
+                      {u.role !== 'manager' && (
+                        <button
+                          onClick={() => handleToggleRole(u)}
+                          className={`p-1.5 rounded transition-colors ${
+                            u.role === 'admin'
+                              ? 'text-yellow-600 hover:bg-yellow-50'
+                              : 'text-green-600 hover:bg-green-50'
+                          }`}
+                          title={u.role === 'admin' ? 'Hủy admin' : 'Thăng admin'}
+                        >
+                          {u.role === 'admin' ? <FaBan size={14} /> : <FaCheck size={14} />}
+                        </button>
+                      )}
+
                       <button
-                        onClick={() => handleToggleRole(u)}
-                        className={`p-2 rounded ${
-                          u.role === 'admin'
-                            ? 'text-yellow-600'
-                            : 'text-green-600'
-                        }`}
+                        onClick={() => handleDeleteUser(u._id)}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                        title="Xóa"
                       >
-                        {u.role === 'admin' ? <FaBan /> : <FaCheck />}
+                        <FaBan size={14} />
                       </button>
-                    )}
-
-                    <button
-                      onClick={() => handleDeleteUser(u._id)}
-                      className="p-2 text-red-600 hover:bg-gray-100 rounded"
-                    >
-                      <FaBan />
-                    </button>
+                    </div>
                   </td>
                 </tr>
               ))}

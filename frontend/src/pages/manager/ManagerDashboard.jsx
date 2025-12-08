@@ -371,20 +371,20 @@ const ManagerDashboard = () => {
           </Link>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-hidden">
+          <table className="w-full table-fixed">
             <thead>
               <tr className="bg-gradient-to-r from-primary/10 to-primary/5">
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 rounded-tl-lg">
+                <th className="w-[30%] px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase rounded-tl-lg">
                   Khách hàng
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                <th className="w-[30%] px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
                   Phòng
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                <th className="w-[20%] px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
                   Tổng tiền
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 rounded-tr-lg">
+                <th className="w-[20%] px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase rounded-tr-lg">
                   Trạng thái
                 </th>
               </tr>
@@ -400,30 +400,32 @@ const ManagerDashboard = () => {
               ) : (
                 recentBookings.slice(0, 10).map((booking) => (
                   <tr key={booking._id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-sm">
+                    <td className="px-2 py-3">
                       <div className="flex items-center space-x-2">
-                        <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary-dark rounded-full flex items-center justify-center text-white font-semibold text-xs">
+                        <div className="w-7 h-7 bg-gradient-to-br from-primary to-primary-dark rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
                           {(booking.guestName || booking.userId?.name || "U").charAt(0)}
                         </div>
-                        <span className="font-medium">
+                        <span className="font-medium text-xs truncate" title={booking.guestName || booking.userId?.name || "Unknown"}>
                           {booking.guestName || booking.userId?.name || "Unknown"}
                         </span>
                       </div>
                     </td>
 
-                    <td className="px-4 py-3 text-sm text-gray-700">
-                      {booking.roomId?.name || "N/A"}
+                    <td className="px-2 py-3">
+                      <div className="text-xs text-gray-700 truncate" title={booking.roomId?.name || "N/A"}>
+                        {booking.roomId?.name || "N/A"}
+                      </div>
                     </td>
 
-                    <td className="px-4 py-3 text-sm">
-                      <span className="font-bold text-accent">
+                    <td className="px-2 py-3">
+                      <span className="font-bold text-accent text-xs">
                         {formatPrice(booking.totalPrice)}
                       </span>
                     </td>
 
-                    <td className="px-4 py-3 text-sm">
+                    <td className="px-2 py-3">
                       <span
-                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
                           booking.paymentStatus === "paid"
                             ? "bg-green-100 text-green-800"
                             : "bg-yellow-100 text-yellow-800"

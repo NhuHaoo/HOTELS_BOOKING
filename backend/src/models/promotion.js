@@ -80,7 +80,7 @@ const promotionSchema = new mongoose.Schema(
 
     // 👉 Áp dụng cho đâu?
     // - global: toàn hệ thống
-    // - hotel: 1 khách sạn
+    // - hotel: 1 hoặc nhiều khách sạn
     // - room: 1 phòng cụ thể
     applyType: {
       type: String,
@@ -88,9 +88,10 @@ const promotionSchema = new mongoose.Schema(
       default: 'global',
     },
 
-    // Nếu applyType = 'hotel' -> áp dụng cho tất cả phòng của hotel này
+    // Nếu applyType = 'hotel' -> áp dụng cho tất cả phòng của hotel(s) này
+    // Có thể là một ObjectId (1 khách sạn) hoặc array (nhiều khách sạn)
     hotelId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.Mixed, // Cho phép ObjectId hoặc [ObjectId]
       ref: 'Hotel',
       default: null,
     },

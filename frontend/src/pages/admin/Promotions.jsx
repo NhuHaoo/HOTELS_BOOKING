@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { promotionAPI } from "../../api/promotion.api";
+import { hotelAPI } from "../../api/hotel.api";
 import Loading from "../../components/Loading";
 
 const EMPTY_FORM = {
@@ -28,6 +29,7 @@ const EMPTY_FORM = {
   isActive: true,
   type: "coupon",
   applyType: "global",
+  hotelId: [], // Array để hỗ trợ chọn nhiều khách sạn
 };
 
 export default function Promotions() {
@@ -44,8 +46,18 @@ export default function Promotions() {
     queryFn: () => promotionAPI.getAll().then((res) => res.data),
   });
 
+  // Load danh sách hotels để chọn
+  const { data: hotelsData, isLoading: isLoadingHotels, error: hotelsError } = useQuery({
+    queryKey: ["hotels-for-promotion"],
+    queryFn: () => hotelAPI.getHotels({ page: 1, limit: 1000 }),
+    // axiosClient đã trả về response.data rồi, nên hotelsData = { success, count, total, page, pages, data: [...] }
+    enabled: isModalOpen, // Chỉ fetch khi modal mở
+    staleTime: 5 * 60 * 1000, // Cache 5 phút
+  });
+
   // BE trả: { success, count, data: [...] }
   const promotions = data?.data || [];
+  const hotels = hotelsData?.data || [];
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -142,6 +154,11 @@ export default function Promotions() {
       isActive: promo.isActive ?? true,
       type: promo.type || "coupon",
       applyType: promo.applyType || "global",
+      hotelId: promo.hotelId
+        ? Array.isArray(promo.hotelId)
+          ? promo.hotelId.map((h) => (typeof h === "object" ? h._id : h).toString())
+          : [typeof promo.hotelId === "object" ? promo.hotelId._id : promo.hotelId].map(String)
+        : [],
     });
 
     setIsModalOpen(true);
@@ -174,6 +191,12 @@ export default function Promotions() {
       isActive: !!form.isActive,
       type: form.type || "coupon",
       applyType: form.applyType || "global",
+      hotelId:
+        form.applyType === "hotel" && form.hotelId && form.hotelId.length > 0
+          ? form.hotelId.length === 1
+            ? form.hotelId[0] // Gửi single value nếu chỉ chọn 1
+            : form.hotelId // Gửi array nếu chọn nhiều
+          : null,
     };
 
     if (!payload.name) {
@@ -186,6 +209,10 @@ export default function Promotions() {
     }
     if (payload.discountValue <= 0) {
       setErrorMsg("Giá trị giảm phải lớn hơn 0");
+      return;
+    }
+    if (payload.applyType === "hotel" && (!payload.hotelId || (Array.isArray(payload.hotelId) && payload.hotelId.length === 0))) {
+      setErrorMsg("Vui lòng chọn ít nhất một khách sạn");
       return;
     }
 
@@ -355,6 +382,17 @@ export default function Promotions() {
                           </span>
                         </div>
                       )}
+                      {promo.applyType === "hotel" && promo.hotelId && (
+                        <div className="mt-2 inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-lg">
+                          <span className="text-white text-xs font-medium">
+                            {Array.isArray(promo.hotelId)
+                              ? `Áp dụng cho ${promo.hotelId.length} khách sạn`
+                              : typeof promo.hotelId === "object" && promo.hotelId?.name
+                              ? `Áp dụng cho: ${promo.hotelId.name} - ${promo.hotelId.city || ""}`
+                              : "Áp dụng cho khách sạn"}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -369,7 +407,7 @@ export default function Promotions() {
                             <Percent className="w-6 h-6 text-orange-600" />
                             <p className="text-4xl font-bold text-orange-600">
                               {promo.discountType === "percent"
-                                ? `${promo.discountValue}%`
+                                ? `${promo.discountValue}`
                                 : `${promo.discountValue.toLocaleString()} đ`}
                             </p>
                           </div>
@@ -415,6 +453,21 @@ export default function Promotions() {
                           </span>
                         </div>
                       )}
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Áp dụng cho:</span>
+                        <span className="font-semibold text-gray-900">
+                          {promo.applyType === "global"
+                            ? "Toàn hệ thống"
+                            : promo.applyType === "hotel" && promo.hotelId
+                            ? Array.isArray(promo.hotelId)
+                              ? `${promo.hotelId.length} khách sạn`
+                              : typeof promo.hotelId === "object" && promo.hotelId?.name
+                              ? `${promo.hotelId.name}`
+                              : "Khách sạn"
+                            : "Phòng cụ thể"}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Actions */}
@@ -526,7 +579,7 @@ export default function Promotions() {
                       }
                       className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-blue-500 focus:outline-none transition-colors"
                     >
-                      <option value="percent">Phần trăm (%)</option>
+                      <option value="percent">Phần trăm ()</option>
                       <option value="fixed">Số tiền (VND)</option>
                     </select>
                   </div>
@@ -629,6 +682,103 @@ export default function Promotions() {
                     />
                   </div>
                 </div>
+
+                {/* Áp dụng cho */}
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                    Áp dụng cho *
+                  </label>
+                  <select
+                    value={form.applyType}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        applyType: e.target.value,
+                        hotelId: e.target.value !== "hotel" ? [] : f.hotelId,
+                      }))
+                    }
+                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:border-blue-500 focus:outline-none transition-colors"
+                  >
+                    <option value="global">Tất cả khách sạn</option>
+                    <option value="hotel">Tùy chọn khách sạn</option>
+                  </select>
+                </div>
+
+                {/* Chọn khách sạn (hiển thị khi applyType = 'hotel') */}
+                {form.applyType === "hotel" && (
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                      Chọn khách sạn * {form.hotelId.length > 0 && `(${form.hotelId.length} đã chọn)`}
+                    </label>
+                    {isLoadingHotels ? (
+                      <div className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-500">
+                        Đang tải danh sách khách sạn...
+                      </div>
+                    ) : hotelsError ? (
+                      <div className="w-full border-2 border-red-200 rounded-xl px-4 py-3 text-sm text-red-600 bg-red-50">
+                        Lỗi khi tải danh sách khách sạn. Vui lòng thử lại.
+                      </div>
+                    ) : (
+                      <div className="w-full border-2 border-gray-200 rounded-xl p-4 max-h-60 overflow-y-auto bg-gray-50">
+                        {hotels.length > 0 ? (
+                          <div className="space-y-2">
+                            {hotels.map((hotel) => {
+                              const isSelected = form.hotelId.includes(hotel._id);
+                              return (
+                                <label
+                                  key={hotel._id}
+                                  className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                                    isSelected
+                                      ? "bg-blue-50 border-2 border-blue-300"
+                                      : "bg-white border-2 border-gray-200 hover:border-blue-200"
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setForm((f) => ({
+                                          ...f,
+                                          hotelId: [...f.hotelId, hotel._id],
+                                        }));
+                                      } else {
+                                        setForm((f) => ({
+                                          ...f,
+                                          hotelId: f.hotelId.filter(
+                                            (id) => id !== hotel._id
+                                          ),
+                                        }));
+                                      }
+                                    }}
+                                    className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                                  />
+                                  <div className="flex-1">
+                                    <span className="font-medium text-gray-900">
+                                      {hotel.name}
+                                    </span>
+                                    <span className="text-sm text-gray-500 ml-2">
+                                      - {hotel.city}
+                                    </span>
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="text-center text-gray-500 py-4">
+                            Không có khách sạn nào
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {form.hotelId.length === 0 && form.applyType === "hotel" && (
+                      <p className="text-xs text-red-500 mt-1">
+                        Vui lòng chọn ít nhất một khách sạn
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {/* Trạng thái */}
                 <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">

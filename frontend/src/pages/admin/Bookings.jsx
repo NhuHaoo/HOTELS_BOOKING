@@ -221,29 +221,29 @@ const Bookings = () => {
 
       {/* Bookings Table */}
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-hidden">
+          <table className="w-full table-fixed">
             <thead>
               <tr className="bg-gradient-to-r from-primary/10 to-primary/5">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase rounded-tl-lg">
+                <th className="w-[12%] px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase rounded-tl-lg">
                   Mã đặt phòng
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                <th className="w-[18%] px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
                   Khách hàng
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                <th className="w-[20%] px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
                   Phòng & Khách sạn
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                <th className="w-[15%] px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
                   Ngày ở
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                <th className="w-[12%] px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
                   Tổng tiền
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                <th className="w-[13%] px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
                   Trạng thái
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase rounded-tr-lg">
+                <th className="w-[10%] px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase rounded-tr-lg">
                   Thao tác
                 </th>
               </tr>
@@ -262,68 +262,70 @@ const Bookings = () => {
               ) : (
                 bookingsData?.data?.map((booking) => (
                   <tr key={booking._id} className="hover:bg-blue-50/50 transition-colors">
-                    <td className="px-4 py-4">
-                      <div className="font-mono text-sm font-bold text-primary">{booking.bookingCode}</div>
+                    <td className="px-2 py-3">
+                      <div className="font-mono text-xs font-bold text-primary truncate" title={booking.bookingCode}>
+                        {booking.bookingCode}
+                      </div>
                       <div className="text-xs text-gray-500 flex items-center mt-1">
-                        <FaClock className="mr-1" size={10} />
-                        {formatDate(booking.createdAt)}
+                        <FaClock className="mr-1" size={9} />
+                        <span className="truncate">{formatDate(booking.createdAt)}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-2 py-3">
                       <div className="flex items-center space-x-2">
-                        <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-full flex items-center justify-center text-white font-bold">
+                        <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary-dark rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
                           {booking.guestName?.charAt(0)}
                         </div>
-                        <div>
-                          <div className="font-semibold text-sm">{booking.guestName}</div>
-                          <div className="text-xs text-gray-600">{booking.guestEmail}</div>
-                          <div className="text-xs text-gray-600">{booking.guestPhone}</div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-xs truncate">{booking.guestName}</div>
+                          <div className="text-xs text-gray-600 truncate">{booking.guestEmail}</div>
+                          <div className="text-xs text-gray-600 truncate">{booking.guestPhone}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center space-x-3">
+                    <td className="px-2 py-3">
+                      <div className="flex items-center space-x-2">
                         <img
                           src={booking.roomId?.images?.[0] || '/placeholder.jpg'}
                           alt={booking.roomId?.name}
-                          className="w-16 h-16 object-cover rounded-lg shadow-sm"
+                          className="w-12 h-12 object-cover rounded-lg shadow-sm flex-shrink-0"
                         />
-                        <div>
-                          <div className="font-semibold text-sm flex items-center">
-                            <FaHotel className="mr-1 text-primary" size={12} />
-                            {booking.roomId?.name}
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-xs flex items-center truncate">
+                            <FaHotel className="mr-1 text-primary flex-shrink-0" size={10} />
+                            <span className="truncate">{booking.roomId?.name}</span>
                           </div>
-                          <div className="text-xs text-gray-600 mt-1">{booking.hotelId?.name}</div>
-                          <div className="text-xs text-gray-500">{booking.hotelId?.city}</div>
+                          <div className="text-xs text-gray-600 mt-1 truncate">{booking.hotelId?.name}</div>
+                          <div className="text-xs text-gray-500 truncate">{booking.hotelId?.city}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-4">
-                      <div className="text-sm space-y-1">
+                    <td className="px-2 py-3">
+                      <div className="text-xs space-y-1">
                         <div className="flex items-center text-gray-700">
-                          <FaCalendar className="mr-2 text-green-500" size={12} />
-                          <span className="font-medium">{formatDate(booking.checkIn)}</span>
+                          <FaCalendar className="mr-1 text-green-500 flex-shrink-0" size={10} />
+                          <span className="font-medium truncate">{formatDate(booking.checkIn)}</span>
                         </div>
                         <div className="flex items-center text-gray-700">
-                          <FaCalendar className="mr-2 text-red-500" size={12} />
-                          <span className="font-medium">{formatDate(booking.checkOut)}</span>
+                          <FaCalendar className="mr-1 text-red-500 flex-shrink-0" size={10} />
+                          <span className="font-medium truncate">{formatDate(booking.checkOut)}</span>
                         </div>
                         <div className="text-xs text-gray-600">
                           <span className="font-semibold">{calculateNights(booking.checkIn, booking.checkOut)}</span> đêm • 
-                          <FaUser className="inline ml-1 mr-1" size={10} />
+                          <FaUser className="inline ml-1 mr-1" size={9} />
                           {booking.guests} khách
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-4">
-                      <div className="font-bold text-lg text-accent flex items-center">
-                        <FaDollarSign className="mr-1" size={14} />
-                        {formatPrice(booking.totalPrice)}
+                    <td className="px-2 py-3">
+                      <div className="font-bold text-sm text-accent flex items-center">
+                        <FaDollarSign className="mr-1 flex-shrink-0" size={12} />
+                        <span className="truncate">{formatPrice(booking.totalPrice)}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-4">
-                      <div className="space-y-2">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                    <td className="px-2 py-3">
+                      <div className="space-y-1">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
                           booking.bookingStatus === 'confirmed' ? 'bg-blue-100 text-blue-800' :
                           booking.bookingStatus === 'checked-in' ? 'bg-green-100 text-green-800' :
                           booking.bookingStatus === 'checked-out' ? 'bg-gray-100 text-gray-800' :
@@ -332,26 +334,27 @@ const Bookings = () => {
                         }`}>
                           {BOOKING_STATUS[booking.bookingStatus]?.label}
                         </span>
-                        <br />
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                          booking.paymentStatus === 'paid' 
-                            ? 'bg-green-100 text-green-800' 
-                            : booking.paymentStatus === 'cancelled'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {booking.paymentStatus === 'paid' ? '✓' : '⏳'} {PAYMENT_STATUS[booking.paymentStatus]?.label}
-                        </span>
+                        <div>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            booking.paymentStatus === 'paid' 
+                              ? 'bg-green-100 text-green-800' 
+                              : booking.paymentStatus === 'cancelled'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {booking.paymentStatus === 'paid' ? '✓' : '⏳'} {PAYMENT_STATUS[booking.paymentStatus]?.label}
+                          </span>
+                        </div>
                       </div>
                     </td>
-                    <td className="px-4 py-4">
-                      <div className="flex justify-center space-x-2">
+                    <td className="px-2 py-3">
+                      <div className="flex justify-center space-x-1">
                         <button
                           onClick={() => setSelectedBooking(booking)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Xem chi tiết"
                         >
-                          <FaEye size={18} />
+                          <FaEye size={16} />
                         </button>
                         {(booking.bookingStatus === 'pending' || booking.bookingStatus === 'confirmed') && (
                           <>
@@ -360,17 +363,17 @@ const Bookings = () => {
                                 id: booking._id, 
                                 status: booking.bookingStatus === 'pending' ? 'confirmed' : 'checked-in'
                               })}
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                               title={booking.bookingStatus === 'pending' ? 'Xác nhận' : 'Nhận phòng'}
                             >
-                              <FaCheck size={18} />
+                              <FaCheck size={16} />
                             </button>
                             <button
                               onClick={() => handleCancelBooking(booking._id)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                               title="Hủy đặt phòng"
                             >
-                              <FaTimes size={18} />
+                              <FaTimes size={16} />
                             </button>
                           </>
                         )}

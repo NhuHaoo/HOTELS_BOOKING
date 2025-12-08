@@ -58,11 +58,11 @@ const hotelSchema = new mongoose.Schema({
   cancellationPolicy: {
     freeCancellationDays: {
       type: Number,
-      default: 1 // Số ngày trước check-in được hủy miễn phí
+      default: 3 // Số ngày trước check-in được hủy miễn phí
     },
     cancellationFee: {
       type: Number,
-      default: 0 // Phí hủy (%)
+      default: 0 // Phí hủy (không dùng % nữa, tính theo giá 1 đêm)
     },
     refundable: {
       type: Boolean,
@@ -76,7 +76,7 @@ const hotelSchema = new mongoose.Schema({
     },
     rescheduleFee: {
       type: Number,
-      default: 0 // Phí dời lịch (%)
+      default: 10 // Phí dời lịch (%)
     },
     allowed: {
       type: Boolean,
@@ -116,6 +116,24 @@ const hotelSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  status: {
+    type: String,
+    enum: ['active', 'suspended', 'violation'],
+    default: 'active'
+  },
+  violationReason: {
+    type: String,
+    default: null
+  },
+  suspendedAt: {
+    type: Date,
+    default: null
+  },
+  suspendedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
   },
   createdAt: {
     type: Date,

@@ -575,22 +575,31 @@ const Booking = () => {
                                   <span>Không hoàn tiền</span>
                                 </div>
                               )}
-                              {selectedRoom.hotelId
+                              <div className="text-blue-700 mt-2">
+                                <p className="font-medium">Quy định hủy phòng:</p>
+                                <ul className="list-disc list-inside mt-1 space-y-1 text-xs">
+                                  <li>Hủy trước{' '}
+                                    <strong>
+                                      {
+                                        selectedRoom.hotelId
                                 .cancellationPolicy
-                                .cancellationFee > 0 && (
-                                <div className="text-blue-700">
-                                  Phí hủy:{' '}
+                                          .freeCancellationDays || 3
+                                      }
+                                    </strong>{' '}
+                                    ngày → Miễn phí (hoàn tiền đầy đủ)
+                                  </li>
+                                  <li>Hủy trong vòng{' '}
                                   <strong>
                                     {
                                       selectedRoom.hotelId
                                         .cancellationPolicy
-                                        .cancellationFee
+                                          .freeCancellationDays || 3
                                     }
-                                    %
                                   </strong>{' '}
-                                  của tổng giá trị
+                                    ngày → Mất phí 50% và hoàn lại 50% tổng tiền đã thanh toán
+                                  </li>
+                                </ul>
                                 </div>
-                              )}
                             </div>
                           </div>
                         </div>
@@ -612,7 +621,7 @@ const Booking = () => {
                                 selectedRoom.hotelId?.reschedulePolicy ||
                                 {
                                   freeRescheduleDays: 3,
-                                  rescheduleFee: 0,
+                                  rescheduleFee: 10,
                                   allowed: true,
                                 };
 
@@ -644,19 +653,28 @@ const Booking = () => {
                                       </span>
                                     </div>
                                   )}
-                                  {reschedulePolicy.rescheduleFee >
-                                    0 && (
-                                    <div className="text-purple-700">
-                                      Phí dời lịch:{' '}
+                                  <div className="text-purple-700 mt-2">
+                                    <p className="font-medium">Quy định đổi lịch:</p>
+                                    <ul className="list-disc list-inside mt-1 space-y-1 text-xs">
+                                      <li>Đổi trước{' '}
+                                        <strong>
+                                          {reschedulePolicy.freeRescheduleDays || 3}
+                                        </strong>{' '}
+                                        ngày → Miễn phí
+                                      </li>
+                                      <li>Đổi trong vòng{' '}
                                       <strong>
-                                        {
-                                          reschedulePolicy.rescheduleFee
-                                        }
-                                        %
+                                          {reschedulePolicy.freeRescheduleDays || 3}
                                       </strong>{' '}
-                                      của tổng giá trị
+                                        ngày → Thu phí{' '}
+                                        <strong>
+                                          {reschedulePolicy.rescheduleFee || 10}%
+                                        </strong>
+                                      </li>
+                                      <li>Đổi sang ngày có giá cao hơn → Bù chênh lệch</li>
+                                      <li>Đổi sang ngày giá thấp hơn → Không hoàn tiền</li>
+                                    </ul>
                                     </div>
-                                  )}
                                 </>
                               ) : (
                                 <div className="flex items-center gap-2">
@@ -689,12 +707,12 @@ const Booking = () => {
                       const freeCancelDays =
                         selectedRoom.hotelId
                           ?.cancellationPolicy
-                          ?.freeCancellationDays || 1;
+                          ?.freeCancellationDays || 3;
                       const reschedulePolicy =
                         selectedRoom.hotelId?.reschedulePolicy ||
                         {
                           freeRescheduleDays: 3,
-                          rescheduleFee: 0,
+                          rescheduleFee: 20,
                           allowed: true,
                         };
                       const freeRescheduleDays =

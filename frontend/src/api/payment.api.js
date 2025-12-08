@@ -12,6 +12,11 @@ export const paymentAPI = {
     return axiosClient.post('/payments/vnpay/create', payload);
   },
 
+  // Create VNPay payment for reschedule
+  createReschedulePayment: (bookingId) => {
+    return axiosClient.post(`/payments/vnpay/reschedule/${bookingId}`);
+  },
+
   // Check payment status
   checkPaymentStatus: (bookingId) => {
     return axiosClient.get(`/payments/status/${bookingId}`);

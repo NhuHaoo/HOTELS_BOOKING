@@ -6,6 +6,7 @@ import Loading from '../components/Loading';
 import { FaCheckCircle, FaArrowRight, FaHotel, FaCalendarAlt, FaUsers, FaPrint, FaDownload } from 'react-icons/fa';
 import { formatPrice } from '../utils/formatPrice';
 import { formatDate, calculateNights } from '../utils/dateUtils';
+import { calcBookingMoney } from '../utils/bookingCalculations';
 import confetti from 'canvas-confetti';
 
 const PaymentSuccess = () => {
@@ -27,6 +28,52 @@ const PaymentSuccess = () => {
   });
 
   const booking = bookings?.[0];
+  const type = searchParams.get('type'); // 'reschedule' hoặc null
+
+  // Tính toán chi tiết thanh toán
+  const paymentDetails = booking ? (() => {
+    const nights = calculateNights(booking.checkIn, booking.checkOut);
+    const isRescheduled = booking.rescheduleInfo && booking.rescheduleInfo.newCheckIn;
+    
+    // Chuẩn bị booking data để tính toán
+    let bookingForCalc;
+    if (isRescheduled) {
+      const rescheduleInfo = booking.rescheduleInfo;
+      const newNights = calculateNights(rescheduleInfo.newCheckIn || booking.checkIn, rescheduleInfo.newCheckOut || booking.checkOut);
+      const pricePerNight = booking.pricePerNight || 
+                            booking.roomId?.finalPrice || 
+                            booking.roomId?.price || 
+                            (rescheduleInfo.roomTotalNew / newNights) || 
+                            (booking.totalPrice / newNights) || 0;
+      
+      bookingForCalc = {
+        ...booking,
+        pricePerNight,
+        nights: newNights,
+        changeFeeAmount: rescheduleInfo.changeFee || rescheduleInfo.rescheduleFee || 0,
+        surchargeAmount: booking.surchargeAmount || 0,
+        discountAmount: rescheduleInfo.discount || booking.discountAmount || 0,
+        totalAmount: booking.totalAmount,
+        paidAmount: booking.paidAmount,
+      };
+    } else {
+      bookingForCalc = {
+        ...booking,
+        pricePerNight: booking.pricePerNight || 
+                       booking.roomId?.finalPrice || 
+                       booking.roomId?.price || 
+                       (booking.totalPrice / nights) || 0,
+        nights: booking.nights || nights,
+        changeFeeAmount: booking.changeFeeAmount || 0,
+        surchargeAmount: booking.surchargeAmount || 0,
+        discountAmount: booking.discountAmount || 0,
+        totalAmount: booking.totalAmount,
+        paidAmount: booking.paidAmount,
+      };
+    }
+    
+    return calcBookingMoney(bookingForCalc);
+  })() : null;
 
   useEffect(() => {
     if (!bookingCode) {
@@ -237,26 +284,131 @@ const PaymentSuccess = () => {
                   <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                 </svg>
                 Chi tiết thanh toán
+                {type === 'reschedule' && (
+                  <span className="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                    Thanh toán đổi lịch
+                  </span>
+                )}
               </h4>
-              <div className="space-y-3">
-                <div className="flex justify-between text-gray-700">
-                  <span>Giá phòng/đêm:</span>
-                  <span className="font-semibold">{formatPrice(booking.roomId?.price || 0)}</span>
+              {type === 'reschedule' && booking?.reschedulePayment ? (
+                // Hiển thị breakdown của lần thanh toán reschedule
+                <div className="space-y-3">
+                  {booking.rescheduleInfo && (
+                    <>
+                      {/* Chênh lệch giá phòng (nếu có thêm đêm) */}
+                      {booking.rescheduleInfo.priceDifference > 0 && (
+                        <div className="flex justify-between text-gray-700">
+                          <span>Tiền phòng phát sinh ({booking.rescheduleInfo.priceDifference > 0 ? 'thêm đêm' : 'giảm đêm'}):</span>
+                          <span className="font-semibold text-orange-600">
+                            {booking.rescheduleInfo.priceDifference > 0 ? '+' : ''}
+                            {formatPrice(Math.abs(booking.rescheduleInfo.priceDifference))}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Phí đổi lịch */}
+                      {booking.rescheduleInfo.rescheduleFee > 0 && (
+                        <div className="flex justify-between text-gray-700">
+                          <span>Phí đổi lịch:</span>
+                          <span className="font-semibold text-orange-600">+{formatPrice(booking.rescheduleInfo.rescheduleFee)}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  
+                  <div className="h-px bg-gray-300"></div>
+                  <div className="flex justify-between text-lg">
+                    <span className="font-bold text-gray-800">Tổng thanh toán lần này:</span>
+                    <span className="font-bold text-2xl text-gradient">{formatPrice(booking.reschedulePayment.amount)}</span>
+                  </div>
+                  
+                  {/* Tổng đã thanh toán */}
+                  {booking.paidAmount > 0 && (
+                    <>
+                      <div className="h-px bg-gray-300 mt-2"></div>
+                      <div className="flex justify-between text-sm text-gray-600 pt-2">
+                        <span>Tổng đã thanh toán (2 lần):</span>
+                        <span className="font-semibold">{formatPrice(booking.paidAmount)}</span>
+                      </div>
+                    </>
+                  )}
+                  
+                  <div className="flex items-center justify-center space-x-2 pt-3">
+                    <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+                    <span className="font-semibold text-green-700">Đã thanh toán</span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-gray-700">
-                  <span>Số đêm:</span>
-                  <span className="font-semibold">{nights} đêm</span>
+              ) : paymentDetails ? (
+                // Hiển thị breakdown đầy đủ cho thanh toán thường
+                <div className="space-y-3">
+                  <div className="flex justify-between text-gray-700">
+                    <span>Giá phòng/đêm:</span>
+                    <span className="font-semibold">{formatPrice(paymentDetails.pricePerNight)}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-700">
+                    <span>Số đêm:</span>
+                    <span className="font-semibold">{paymentDetails.nights} đêm</span>
+                  </div>
+                  <div className="flex justify-between text-gray-700">
+                    <span>Tiền phòng:</span>
+                    <span className="font-semibold">{formatPrice(paymentDetails.roomTotal)}</span>
+                  </div>
+                  
+                  {/* Phí đổi lịch */}
+                  {paymentDetails.changeFee > 0 && (
+                    <div className="flex justify-between text-gray-700">
+                      <span>Phí đổi lịch:</span>
+                      <span className="font-semibold text-orange-600">+{formatPrice(paymentDetails.changeFee)}</span>
+                    </div>
+                  )}
+                  
+                  {/* Phụ thu */}
+                  {paymentDetails.surcharge > 0 && (
+                    <div className="flex justify-between text-gray-700">
+                      <span>Phụ thu:</span>
+                      <span className="font-semibold text-orange-600">+{formatPrice(paymentDetails.surcharge)}</span>
+                    </div>
+                  )}
+                  
+                  {/* Giảm giá */}
+                  {paymentDetails.discount > 0 && (
+                    <div className="flex justify-between text-gray-700">
+                      <span>Giảm giá:</span>
+                      <span className="font-semibold text-green-600">-{formatPrice(paymentDetails.discount)}</span>
+                    </div>
+                  )}
+                  
+                  <div className="h-px bg-gray-300"></div>
+                  <div className="flex justify-between text-lg">
+                    <span className="font-bold text-gray-800">Tổng cộng:</span>
+                    <span className="font-bold text-2xl text-gradient">{formatPrice(paymentDetails.total)}</span>
+                  </div>
+                  <div className="flex items-center justify-center space-x-2 pt-3">
+                    <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+                    <span className="font-semibold text-green-700">Đã thanh toán</span>
+                  </div>
                 </div>
-                <div className="h-px bg-gray-300"></div>
-                <div className="flex justify-between text-lg">
-                  <span className="font-bold text-gray-800">Tổng cộng:</span>
-                  <span className="font-bold text-2xl text-gradient">{formatPrice(booking.totalPrice)}</span>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex justify-between text-gray-700">
+                    <span>Giá phòng/đêm:</span>
+                    <span className="font-semibold">{formatPrice(booking.roomId?.price || 0)}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-700">
+                    <span>Số đêm:</span>
+                    <span className="font-semibold">{nights} đêm</span>
+                  </div>
+                  <div className="h-px bg-gray-300"></div>
+                  <div className="flex justify-between text-lg">
+                    <span className="font-bold text-gray-800">Tổng cộng:</span>
+                    <span className="font-bold text-2xl text-gradient">{formatPrice(booking.totalPrice || booking.totalAmount || 0)}</span>
+                  </div>
+                  <div className="flex items-center justify-center space-x-2 pt-3">
+                    <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+                    <span className="font-semibold text-green-700">Đã thanh toán</span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-center space-x-2 pt-3">
-                  <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
-                  <span className="font-semibold text-green-700">Đã thanh toán</span>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
