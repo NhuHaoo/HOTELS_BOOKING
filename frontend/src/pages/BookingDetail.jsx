@@ -314,7 +314,8 @@ const BookingDetail = () => {
     booking.reschedulePolicy &&
     booking.reschedulePolicy.allowed !== false &&
     (booking.bookingStatus === 'pending' ||
-      booking.bookingStatus === 'confirmed');
+      booking.bookingStatus === 'confirmed') &&
+    !booking.rescheduledAt; // Chỉ cho phép đổi lịch nếu chưa đổi lần nào
 
   // ============ UI ============
   return (
@@ -895,6 +896,18 @@ const BookingDetail = () => {
                               <li>Đổi sang ngày giá thấp hơn → Không hoàn tiền</li>
                             </ul>
                             </div>
+                          {booking.rescheduledAt && (
+                            <div className="mt-3 pt-3 border-t border-purple-200">
+                              <div className="bg-yellow-50 border border-yellow-300 rounded p-3">
+                                <div className="flex items-center gap-2 text-yellow-800">
+                                  <FaExclamationTriangle className="text-yellow-600" />
+                                  <span className="font-medium">
+                                    Đơn đặt phòng này đã được đổi lịch 1 lần. Không thể đổi lịch thêm lần nữa.
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                           <div className="mt-3 pt-3 border-t border-purple-200">
                             <div className="text-xs text-purple-700">
                               <strong>Thời gian còn lại:</strong>{' '}

@@ -545,6 +545,14 @@ exports.rescheduleBooking = async (req, res) => {
       });
     }
 
+    // Kiểm tra xem đã đổi lịch chưa (chỉ cho phép đổi 1 lần)
+    if (booking.rescheduledAt) {
+      return res.status(400).json({
+        success: false,
+        message: 'Đơn đặt phòng này đã được đổi lịch 1 lần. Không thể đổi lịch thêm lần nữa'
+      });
+    }
+
     // Validate ngày mới
     const today = new Date();
     today.setHours(0, 0, 0, 0);
