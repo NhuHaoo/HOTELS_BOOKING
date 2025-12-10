@@ -38,19 +38,22 @@ exports.getDashboard = async (req, res) => {
     // Tổng booking (theo filter)
     const totalBookings = await Booking.countDocuments(bookingMatch);
 
-    // Doanh thu + giá trị trung bình (chỉ tính booking paid)
+    // Doanh thu + giá trị trung bình (chỉ tính booking paid, loại trừ booking cancelled)
+    // totalRevenue = originalTotal (doanh thu gốc trước khi giảm giá)
+    // Không tính booking cancelled vào doanh thu hệ thống
     const revenueStats = await Booking.aggregate([
       {
         $match: {
           ...bookingMatch,
           paymentStatus: 'paid',
+          bookingStatus: { $ne: 'cancelled' }, // Loại trừ booking cancelled
         },
       },
       {
         $group: {
           _id: null,
-          totalRevenue: { $sum: '$totalPrice' },
-          averageBookingValue: { $avg: '$totalPrice' },
+          totalRevenue: { $sum: { $ifNull: ['$originalTotal', '$totalPrice', 0] } }, // Doanh thu gốc
+          averageBookingValue: { $avg: { $ifNull: ['$originalTotal', '$totalPrice', 0] } },
         },
       },
     ]);
@@ -123,6 +126,7 @@ exports.getDashboard = async (req, res) => {
         $match: {
           ...bookingMatch,
           paymentStatus: 'paid',
+          bookingStatus: { $ne: 'cancelled' }, // Loại trừ booking cancelled
           ...(Object.keys(createdAtRange).length
             ? { createdAt: createdAtRange }
             : {}),
@@ -134,7 +138,7 @@ exports.getDashboard = async (req, res) => {
             year: { $year: '$createdAt' },
             month: { $month: '$createdAt' },
           },
-          revenue: { $sum: '$totalPrice' },
+          revenue: { $sum: { $ifNull: ['$originalTotal', '$totalPrice', 0] } }, // Doanh thu gốc
           bookings: { $sum: 1 },
         },
       },
@@ -215,7 +219,7 @@ exports.getRevenue = async (req, res) => {
       {
         $group: {
           _id: groupByField,
-          revenue: { $sum: '$totalPrice' },
+          revenue: { $sum: { $ifNull: ['$originalTotal', '$totalPrice', 0] } }, // Doanh thu gốc
           bookings: { $sum: 1 },
           averageValue: { $avg: '$totalPrice' }
         }
@@ -244,6 +248,141 @@ exports.getRevenue = async (req, res) => {
     });
   } catch (error) {
     console.error('Get revenue error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// ====================== PROFIT/COMMISSION ======================
+// @desc    Get profit/commission statistics
+// @route   GET /api/admin/profit
+// @access  Private/Admin
+exports.getProfit = async (req, res) => {
+  try {
+    const { hotelId, startDate, endDate, groupBy = 'month' } = req.query;
+
+    let matchCondition = { 
+      paymentStatus: 'paid',
+      bookingStatus: { $ne: 'cancelled' }, // Loại trừ booking cancelled
+      'commission.amount': { $gt: 0 } // Chỉ tính booking đã có commission
+    };
+
+    // Lọc theo khách sạn
+    if (hotelId && hotelId !== '' && hotelId !== 'all') {
+      matchCondition.hotelId = new mongoose.Types.ObjectId(hotelId);
+    }
+
+    // Lọc theo khoảng ngày
+    if (startDate || endDate) {
+      matchCondition.createdAt = {};
+      if (startDate) matchCondition.createdAt.$gte = new Date(startDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        matchCondition.createdAt.$lte = end;
+      }
+    }
+
+    let groupByField;
+    switch (groupBy) {
+      case 'day':
+        groupByField = {
+          year: { $year: '$createdAt' },
+          month: { $month: '$createdAt' },
+          day: { $dayOfMonth: '$createdAt' }
+        };
+        break;
+      case 'month':
+        groupByField = {
+          year: { $year: '$createdAt' },
+          month: { $month: '$createdAt' }
+        };
+        break;
+      case 'year':
+        groupByField = {
+          year: { $year: '$createdAt' }
+        };
+        break;
+      default:
+        groupByField = {
+          year: { $year: '$createdAt' },
+          month: { $month: '$createdAt' }
+        };
+    }
+
+    // Tính commission và profit theo thời gian
+    // totalRevenue = originalTotal (doanh thu gốc trước khi giảm giá)
+    // actualProfit = commission - promotionCost + rescheduleFee
+    const profit = await Booking.aggregate([
+      { $match: matchCondition },
+      {
+        $group: {
+          _id: groupByField,
+          totalCommission: { $sum: '$commission.amount' },
+          totalDiscount: { $sum: { $ifNull: ['$discountAmount', 0] } },
+          totalRevenue: { $sum: { $ifNull: ['$originalTotal', '$totalPrice', 0] } }, // Doanh thu gốc
+          totalRescheduleFee: { $sum: { $ifNull: ['$rescheduleFee', 0] } }, // Phí đổi lịch (tiền của nền tảng)
+          bookings: { $sum: 1 }
+        }
+      },
+      {
+        $addFields: {
+          actualProfit: { 
+            $add: [
+              { $subtract: ['$totalCommission', '$totalDiscount'] },
+              '$totalRescheduleFee'
+            ]
+          }
+        }
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } }
+    ]);
+
+    // Tổng profit và refundAmount
+    const totalProfit = await Booking.aggregate([
+      { $match: matchCondition },
+      {
+        $group: {
+          _id: null,
+          totalCommission: { $sum: '$commission.amount' },
+          totalDiscount: { $sum: { $ifNull: ['$discountAmount', 0] } },
+          totalRevenue: { $sum: { $ifNull: ['$originalTotal', '$totalPrice', 0] } }, // Doanh thu gốc
+          totalRescheduleFee: { $sum: { $ifNull: ['$rescheduleFee', 0] } }, // Phí đổi lịch (tiền của nền tảng)
+          totalRefundAmount: { $sum: { $ifNull: ['$refundAmount', 0] } }, // Tổng tiền đã hoàn cho khách
+          bookings: { $sum: 1 }
+        }
+      },
+      {
+        $addFields: {
+          actualProfit: { 
+            $add: [
+              { $subtract: ['$totalCommission', '$totalDiscount'] },
+              '$totalRescheduleFee'
+            ]
+          }
+        }
+      }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        profit,
+        summary: totalProfit[0] || { 
+          totalCommission: 0, 
+          totalDiscount: 0, 
+          totalRescheduleFee: 0,
+          totalRefundAmount: 0,
+          actualProfit: 0,
+          totalRevenue: 0,
+          bookings: 0
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get profit error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -613,11 +752,29 @@ exports.deleteUser = async (req, res) => {
 // @access  Private/Admin
 exports.getBookings = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search, bookingStatus, paymentStatus } = req.query;
+    const { page = 1, limit = 20, search, bookingStatus, paymentStatus, refundStatus, hotelId, startDate, endDate } = req.query;
 
     let query = {};
     if (bookingStatus) query.bookingStatus = bookingStatus;
     if (paymentStatus) query.paymentStatus = paymentStatus;
+    if (refundStatus) query.refundStatus = refundStatus;
+    
+    // Lọc theo khách sạn
+    if (hotelId && hotelId !== '' && hotelId !== 'all') {
+      query.hotelId = new mongoose.Types.ObjectId(hotelId);
+    }
+    
+    // Lọc theo khoảng ngày (createdAt)
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = end;
+      }
+    }
+    
     if (search) {
       query.$or = [
         { bookingCode: { $regex: search, $options: 'i' } },

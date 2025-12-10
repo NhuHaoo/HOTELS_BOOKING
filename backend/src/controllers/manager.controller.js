@@ -27,23 +27,107 @@ exports.getDashboard = async (req, res) => {
     const hotelId = getManagerHotelId(req, res);
     if (!hotelId) return;
 
-    const totalRooms = await Room.countDocuments({ hotelId, isActive: true });
-    const totalBookings = await Booking.countDocuments({ hotelId });
-    const totalReviews = await Review.countDocuments({ hotelId });
+    // Lấy date filters từ query params
+    const { startDate, endDate } = req.query;
+    
+    // Xây dựng date filter condition
+    let dateFilter = {};
+    if (startDate || endDate) {
+      dateFilter.createdAt = {};
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        dateFilter.createdAt.$gte = start;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        dateFilter.createdAt.$lte = end;
+      }
+    } else {
+      // Nếu không có date filter, mặc định lấy tháng này
+      const monthStart = new Date();
+      monthStart.setMonth(monthStart.getMonth());
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      dateFilter.createdAt = {
+        $gte: monthStart,
+        $lte: today
+      };
+    }
 
+    const totalRooms = await Room.countDocuments({ hotelId, isActive: true });
+    
+    // Tổng bookings trong khoảng thời gian
+    const totalBookings = await Booking.countDocuments({ 
+      hotelId,
+      ...dateFilter
+    });
+    
+    // Tổng reviews trong khoảng thời gian (nếu có date filter)
+    const reviewFilter = dateFilter.createdAt ? {
+      hotelId,
+      createdAt: dateFilter.createdAt
+    } : { hotelId };
+    const totalReviews = await Review.countDocuments(reviewFilter);
+
+    // Tính doanh thu thực tế của khách sạn (sau khi trừ commission)
+    // Doanh thu = originalTotal - commission.amount = settlement.amount
     const revenueStats = await Booking.aggregate([
-      { $match: { hotelId, paymentStatus: 'paid' } },
+      { 
+        $match: { 
+          hotelId, 
+          paymentStatus: 'paid',
+          bookingStatus: { $ne: 'cancelled' }, // Loại trừ bookings đã hủy
+          ...dateFilter
+        } 
+      },
       {
         $group: {
           _id: null,
-          totalRevenue: { $sum: '$totalPrice' },
-          averageBookingValue: { $avg: '$totalPrice' }
+          // Doanh thu thực tế = originalTotal - commission
+          totalRevenue: { 
+            $sum: {
+              $cond: [
+                { $gt: [{ $ifNull: ['$settlement.amount', 0] }, 0] },
+                '$settlement.amount', // Nếu đã có settlement.amount thì dùng
+                {
+                  $subtract: [
+                    { $ifNull: ['$originalTotal', '$totalPrice', 0] },
+                    { $ifNull: ['$commission.amount', 0] }
+                  ]
+                }
+              ]
+            }
+          },
+          averageBookingValue: { 
+            $avg: {
+              $cond: [
+                { $gt: [{ $ifNull: ['$settlement.amount', 0] }, 0] },
+                '$settlement.amount',
+                {
+                  $subtract: [
+                    { $ifNull: ['$originalTotal', '$totalPrice', 0] },
+                    { $ifNull: ['$commission.amount', 0] }
+                  ]
+                }
+              ]
+            }
+          }
         }
       }
     ]);
 
+    // Bookings theo status trong khoảng thời gian
     const bookingsByStatus = await Booking.aggregate([
-      { $match: { hotelId } },
+      { 
+        $match: { 
+          hotelId,
+          ...dateFilter
+        } 
+      },
       {
         $group: {
           _id: '$bookingStatus',
@@ -52,7 +136,11 @@ exports.getDashboard = async (req, res) => {
       }
     ]);
 
-    const recentBookings = await Booking.find({ hotelId })
+    // Recent bookings trong khoảng thời gian
+    const recentBookings = await Booking.find({ 
+      hotelId,
+      ...dateFilter
+    })
       .populate('userId', 'name email')
       .populate('roomId', 'name price')
       .sort('-createdAt')
@@ -63,15 +151,25 @@ exports.getDashboard = async (req, res) => {
       .sort('-rating')
       .limit(5);
 
+    // Doanh thu theo tháng (sau khi trừ commission)
+    // Nếu có date filter, dùng date filter. Nếu không, lấy 12 tháng gần nhất
+    const monthlyRevenueMatch = {
+      hotelId,
+      paymentStatus: 'paid',
+      bookingStatus: { $ne: 'cancelled' }
+    };
+    
+    if (dateFilter.createdAt) {
+      monthlyRevenueMatch.createdAt = dateFilter.createdAt;
+    } else {
+      monthlyRevenueMatch.createdAt = {
+        $gte: new Date(new Date().setMonth(new Date().getMonth() - 12))
+      };
+    }
+    
     const monthlyRevenue = await Booking.aggregate([
       {
-        $match: {
-          hotelId,
-          paymentStatus: 'paid',
-          createdAt: {
-            $gte: new Date(new Date().setMonth(new Date().getMonth() - 12))
-          }
-        }
+        $match: monthlyRevenueMatch
       },
       {
         $group: {
@@ -79,7 +177,21 @@ exports.getDashboard = async (req, res) => {
             year: { $year: '$createdAt' },
             month: { $month: '$createdAt' }
           },
-          revenue: { $sum: '$totalPrice' },
+          // Doanh thu thực tế = originalTotal - commission
+          revenue: { 
+            $sum: {
+              $cond: [
+                { $gt: [{ $ifNull: ['$settlement.amount', 0] }, 0] },
+                '$settlement.amount',
+                {
+                  $subtract: [
+                    { $ifNull: ['$originalTotal', '$totalPrice', 0] },
+                    { $ifNull: ['$commission.amount', 0] }
+                  ]
+                }
+              ]
+            }
+          },
           bookings: { $sum: 1 }
         }
       },
@@ -115,7 +227,11 @@ exports.getRevenue = async (req, res) => {
 
     const { startDate, endDate, groupBy = 'month' } = req.query;
 
-    const matchCondition = { hotelId, paymentStatus: 'paid' };
+    const matchCondition = { 
+      hotelId, 
+      paymentStatus: 'paid',
+      bookingStatus: { $ne: 'cancelled' } // Loại trừ bookings đã hủy
+    };
     if (startDate || endDate) {
       matchCondition.createdAt = {};
       if (startDate) matchCondition.createdAt.$gte = new Date(startDate);
@@ -142,14 +258,42 @@ exports.getRevenue = async (req, res) => {
         };
     }
 
+    // Doanh thu thực tế (sau khi trừ commission)
     const revenue = await Booking.aggregate([
       { $match: matchCondition },
       {
         $group: {
           _id: groupByField,
-          revenue: { $sum: '$totalPrice' },
+          // Doanh thu thực tế = originalTotal - commission
+          revenue: { 
+            $sum: {
+              $cond: [
+                { $gt: [{ $ifNull: ['$settlement.amount', 0] }, 0] },
+                '$settlement.amount',
+                {
+                  $subtract: [
+                    { $ifNull: ['$originalTotal', '$totalPrice', 0] },
+                    { $ifNull: ['$commission.amount', 0] }
+                  ]
+                }
+              ]
+            }
+          },
           bookings: { $sum: 1 },
-          averageValue: { $avg: '$totalPrice' }
+          averageValue: { 
+            $avg: {
+              $cond: [
+                { $gt: [{ $ifNull: ['$settlement.amount', 0] }, 0] },
+                '$settlement.amount',
+                {
+                  $subtract: [
+                    { $ifNull: ['$originalTotal', '$totalPrice', 0] },
+                    { $ifNull: ['$commission.amount', 0] }
+                  ]
+                }
+              ]
+            }
+          }
         }
       },
       { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } }
@@ -160,7 +304,21 @@ exports.getRevenue = async (req, res) => {
       {
         $group: {
           _id: null,
-          total: { $sum: '$totalPrice' },
+          // Tổng doanh thu thực tế
+          total: { 
+            $sum: {
+              $cond: [
+                { $gt: [{ $ifNull: ['$settlement.amount', 0] }, 0] },
+                '$settlement.amount',
+                {
+                  $subtract: [
+                    { $ifNull: ['$originalTotal', '$totalPrice', 0] },
+                    { $ifNull: ['$commission.amount', 0] }
+                  ]
+                }
+              ]
+            }
+          },
           bookings: { $sum: 1 }
         }
       }
@@ -184,13 +342,34 @@ exports.getAnalytics = async (req, res) => {
     const hotelId = getManagerHotelId(req, res);
     if (!hotelId) return;
 
+    // Doanh thu theo phương thức thanh toán (sau khi trừ commission)
     const bookingsByPayment = await Booking.aggregate([
-      { $match: { hotelId } },
+      { 
+        $match: { 
+          hotelId,
+          paymentStatus: 'paid',
+          bookingStatus: { $ne: 'cancelled' } // Loại trừ bookings đã hủy
+        } 
+      },
       {
         $group: {
           _id: '$paymentMethod',
           count: { $sum: 1 },
-          revenue: { $sum: '$totalPrice' }
+          // Doanh thu thực tế = originalTotal - commission
+          revenue: { 
+            $sum: {
+              $cond: [
+                { $gt: [{ $ifNull: ['$settlement.amount', 0] }, 0] },
+                '$settlement.amount',
+                {
+                  $subtract: [
+                    { $ifNull: ['$originalTotal', '$totalPrice', 0] },
+                    { $ifNull: ['$commission.amount', 0] }
+                  ]
+                }
+              ]
+            }
+          }
         }
       }
     ]);
@@ -199,8 +378,15 @@ exports.getAnalytics = async (req, res) => {
       .select('name rating totalReviews')
       .limit(1);
 
+    // Doanh thu theo loại phòng (sau khi trừ commission)
     const roomTypeStats = await Booking.aggregate([
-      { $match: { hotelId } },
+      { 
+        $match: { 
+          hotelId,
+          paymentStatus: 'paid',
+          bookingStatus: { $ne: 'cancelled' } // Loại trừ bookings đã hủy
+        } 
+      },
       {
         $lookup: {
           from: 'rooms',
@@ -214,7 +400,21 @@ exports.getAnalytics = async (req, res) => {
         $group: {
           _id: '$room.roomType',
           bookings: { $sum: 1 },
-          revenue: { $sum: '$totalPrice' }
+          // Doanh thu thực tế = originalTotal - commission
+          revenue: { 
+            $sum: {
+              $cond: [
+                { $gt: [{ $ifNull: ['$settlement.amount', 0] }, 0] },
+                '$settlement.amount',
+                {
+                  $subtract: [
+                    { $ifNull: ['$originalTotal', '$totalPrice', 0] },
+                    { $ifNull: ['$commission.amount', 0] }
+                  ]
+                }
+              ]
+            }
+          }
         }
       },
       { $sort: { bookings: -1 } }

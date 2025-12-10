@@ -16,6 +16,11 @@ export const adminAPI = {
     return axiosClient.get('/admin/revenue', { params });
   },
 
+  // Thống kê lợi nhuận (commission)
+  getProfit: (params = {}) => {
+    return axiosClient.get('/admin/profit', { params });
+  },
+
   // Analytics tổng hợp
   getAnalytics: (params = {}) => {
     return axiosClient.get('/admin/analytics', { params });
@@ -73,5 +78,25 @@ export const adminAPI = {
 
   deleteReview: (id) => {
     return axiosClient.delete(`/admin/reviews/${id}`);
+  },
+
+  // ======================
+  // SETTLEMENTS
+  // ======================
+
+  getSettlements: (params) => {
+    return axiosClient.get('/admin/settlements', { params });
+  },
+
+  getSettlement: (id) => {
+    return axiosClient.get(`/admin/settlements/${id}`);
+  },
+
+  createSettlement: (data) => {
+    return axiosClient.post('/admin/settlements/create', data);
+  },
+
+  paySettlement: (id, data) => {
+    return axiosClient.put(`/admin/settlements/${id}/pay`, data);
   },
 };

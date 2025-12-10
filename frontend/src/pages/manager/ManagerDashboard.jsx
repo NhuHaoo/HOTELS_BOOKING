@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "../../utils/axiosInstance";
 import Loading from "../../components/Loading";
+import ManagerDashboardFilters from "../../components/dashboard/ManagerDashboardFilters";
 import {
   FaHotel,
   FaClipboardList,
@@ -32,15 +34,30 @@ import {
 import { Link } from "react-router-dom";
 
 const ManagerDashboard = () => {
+  const getDefaultFilters = () => {
+    const today = new Date();
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    return {
+      startDate: monthStart.toISOString().split('T')[0],
+      endDate: today.toISOString().split('T')[0]
+    };
+  };
+
+  const [filters, setFilters] = useState(getDefaultFilters);
+
   const {
     data: dashboardData,
     isLoading,
     isError,
     error,
   } = useQuery({
-    queryKey: ["manager-dashboard"],
+    queryKey: ["manager-dashboard", filters],
     queryFn: async () => {
-      const res = await axios.get("/manager/dashboard");
+      const params = {};
+      if (filters.startDate) params.startDate = filters.startDate;
+      if (filters.endDate) params.endDate = filters.endDate;
+      
+      const res = await axios.get("/manager/dashboard", { params });
       return res.data;
     },
   });
@@ -98,20 +115,21 @@ const ManagerDashboard = () => {
       trendUp: true,
     },
     {
-      title: "Doanh thu",
+      title: "Tổng doanh thu",
       value: formatPrice(overview.totalRevenue || 0),
       icon: FaDollarSign,
       gradient: "from-yellow-500 to-orange-500",
       iconBg: "bg-accent",
       trend: "+18%",
       trendUp: true,
+      description: "Sau khi trừ hoa hồng"
     },
   ];
 
   // ====== Transform monthlyRevenue for charts ======
   const revenueChartData = monthlyRevenue.map((item) => ({
     name: `T${item._id.month}/${item._id.year}`,
-    "Doanh thu": item.revenue,
+    "Doanh thu thực tế": item.revenue, 
     "Đặt phòng": item.bookings,
   }));
 
@@ -166,17 +184,21 @@ const ManagerDashboard = () => {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Manager Dashboard
+             Tổng quan
           </h1>
-          <p className="text-gray-600">
-            Tổng quan khách sạn bạn đang quản lý
-          </p>
+          
         </div>
         <div className="mt-4 md:mt-0 flex items-center space-x-2 text-sm text-gray-500">
           <FaClock />
           <span>Cập nhật: {new Date().toLocaleDateString("vi-VN")}</span>
         </div>
       </div>
+
+      {/* Filters */}
+      <ManagerDashboardFilters 
+        filters={filters} 
+        onFilterChange={setFilters}
+      />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -245,10 +267,11 @@ const ManagerDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Revenue Chart */}
         <div className="lg:col-span-2 card p-6">
-          <h2 className="text-xl font-bold mb-4 flex items-center">
+          <h2 className="text-xl font-bold mb-2 flex items-center">
             <FaDollarSign className="mr-2 text-accent" />
-            Doanh thu & Đặt phòng theo tháng
+            Doanh thu  & Đặt phòng theo tháng
           </h2>
+        
 
           <ResponsiveContainer width="100%" height={350}>
             <BarChart data={revenueChartData}>
@@ -257,7 +280,7 @@ const ManagerDashboard = () => {
               <YAxis />
               <Tooltip
                 formatter={(value, name) => {
-                  if (name === "Doanh thu") return formatPrice(value);
+                  if (name === "Doanh thu thực tế") return formatPrice(value);
                   return value;
                 }}
                 contentStyle={{
@@ -268,7 +291,7 @@ const ManagerDashboard = () => {
               />
               <Legend />
               <Bar
-                dataKey="Doanh thu"
+                dataKey="Doanh thu thực tế"
                 fill="#febb02"
                 radius={[8, 8, 0, 0]}
               />

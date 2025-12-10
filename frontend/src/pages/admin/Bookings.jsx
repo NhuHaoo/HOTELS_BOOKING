@@ -15,7 +15,8 @@ import {
   FaDollarSign,
   FaCheckCircle,
   FaBan,
-  FaClock
+  FaClock,
+  FaUndo
 } from 'react-icons/fa';
 import { formatPrice } from '../../utils/formatPrice';
 import { formatDate, calculateNights } from '../../utils/dateUtils';
@@ -26,19 +27,21 @@ const Bookings = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPaymentStatus, setFilterPaymentStatus] = useState('');
+  const [filterRefundStatus, setFilterRefundStatus] = useState('');
   const [page, setPage] = useState(1);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
 
   // Fetch bookings
   const { data: bookingsData, isLoading } = useQuery({
-    queryKey: ['admin-bookings', page, searchTerm, filterStatus, filterPaymentStatus],
+    queryKey: ['admin-bookings', page, searchTerm, filterStatus, filterPaymentStatus, filterRefundStatus],
     queryFn: () => adminAPI.getBookings({
       page,
       limit: 15,
       search: searchTerm,
       bookingStatus: filterStatus,
       paymentStatus: filterPaymentStatus,
+      refundStatus: filterRefundStatus,
     }),
   });
 
@@ -78,13 +81,15 @@ const Bookings = () => {
     setSearchTerm('');
     setFilterStatus('');
     setFilterPaymentStatus('');
+    setFilterRefundStatus('');
     setPage(1);
   };
 
   const activeFiltersCount = 
     (searchTerm ? 1 : 0) +
     (filterStatus ? 1 : 0) +
-    (filterPaymentStatus ? 1 : 0);
+    (filterPaymentStatus ? 1 : 0) +
+    (filterRefundStatus ? 1 : 0);
 
   // Quick stats
   const stats = [
@@ -181,7 +186,7 @@ const Bookings = () => {
           </div>
         </div>
 
-        <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${showFilters ? 'block' : 'hidden md:grid'}`}>
+        <div className={`grid grid-cols-1 md:grid-cols-4 gap-4 ${showFilters ? 'block' : 'hidden md:grid'}`}>
           <div className="relative">
             <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
@@ -216,6 +221,16 @@ const Bookings = () => {
               </option>
             ))}
           </select>
+          <select
+            value={filterRefundStatus}
+            onChange={(e) => setFilterRefundStatus(e.target.value)}
+            className="input w-full"
+          >
+            <option value="">Tất cả trạng thái hoàn tiền</option>
+            <option value="none">Chưa hoàn</option>
+            <option value="partial">Đã hoàn một phần</option>
+            <option value="full">Đã hoàn toàn bộ</option>
+          </select>
         </div>
       </div>
 
@@ -237,13 +252,16 @@ const Bookings = () => {
                 <th className="w-[15%] px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
                   Ngày ở
                 </th>
-                <th className="w-[12%] px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                <th className="w-[10%] px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
                   Tổng tiền
                 </th>
-                <th className="w-[13%] px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                <th className="w-[10%] px-2 py-3 text-right text-xs font-semibold text-gray-700 uppercase">
+                  Hoàn tiền
+                </th>
+                <th className="w-[12%] px-2 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
                   Trạng thái
                 </th>
-                <th className="w-[10%] px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase rounded-tr-lg">
+                <th className="w-[8%] px-2 py-3 text-center text-xs font-semibold text-gray-700 uppercase rounded-tr-lg">
                   Thao tác
                 </th>
               </tr>
@@ -251,7 +269,7 @@ const Bookings = () => {
             <tbody className="divide-y divide-gray-100">
               {bookingsData?.data?.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-4 py-12 text-center">
+                  <td colSpan="8" className="px-4 py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-gray-500">
                       <FaCalendar size={48} className="mb-4 text-gray-300" />
                       <p className="text-lg font-semibold mb-1">Không có đặt phòng nào</p>
@@ -321,6 +339,19 @@ const Bookings = () => {
                       <div className="font-bold text-sm text-accent flex items-center">
                         <FaDollarSign className="mr-1 flex-shrink-0" size={12} />
                         <span className="truncate">{formatPrice(booking.totalPrice)}</span>
+                      </div>
+                    </td>
+                    <td className="px-2 py-3 text-right">
+                      <div className="text-sm">
+                        {booking.refundAmount > 0 ? (
+                          <span className="font-semibold text-blue-700">
+                            {formatPrice(booking.refundAmount)} đ
+                            {booking.refundStatus === 'full' && ' (full)'}
+                            {booking.refundStatus === 'partial' && ' (50%)'}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">0 đ</span>
+                        )}
                       </div>
                     </td>
                     <td className="px-2 py-3">
@@ -504,6 +535,56 @@ const Bookings = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Thông tin hoàn tiền */}
+              {(selectedBooking.refundAmount > 0 || selectedBooking.bookingStatus === 'cancelled') && (
+                <div className="card p-5 border-2 border-blue-200 bg-blue-50">
+                  <h3 className="font-bold text-lg mb-4 flex items-center text-primary">
+                    <FaUndo className="mr-2" />
+                    Thông tin hoàn tiền
+                  </h3>
+                  <div className="space-y-3 text-sm">
+                    {selectedBooking.refundAmount > 0 ? (
+                      <>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-700 font-medium">Số tiền đã hoàn:</span>
+                          <span className="font-bold text-lg text-blue-700">
+                            {formatPrice(selectedBooking.refundAmount)} đ
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-700 font-medium">Trạng thái:</span>
+                          <span className="font-semibold text-blue-700">
+                            {selectedBooking.refundStatus === 'full' && 'Đã hoàn tiền - Hoàn toàn bộ'}
+                            {selectedBooking.refundStatus === 'partial' && 'Đã hoàn tiền - Hoàn một phần'}
+                            {!selectedBooking.refundStatus && 'Đã hoàn tiền'}
+                          </span>
+                        </div>
+                        {selectedBooking.refundedAt && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-700 font-medium">Thời gian hoàn:</span>
+                            <span className="font-semibold text-gray-700">
+                              {formatDate(selectedBooking.refundedAt)}
+                            </span>
+                          </div>
+                        )}
+                        {selectedBooking.cancellationFee > 0 && (
+                          <div className="mt-3 pt-3 border-t border-blue-300">
+                            <div className="text-xs text-gray-600 space-y-1">
+                              <div className="font-semibold text-gray-700">Tiền phạt hủy thuộc về khách sạn: {formatPrice(selectedBooking.cancellationFee)} đ</div>
+                              <div className="text-gray-600">Hệ thống không thu commission cho booking bị hủy.</div>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-gray-600">
+                        Chưa hoàn tiền / Đang xử lý hoàn tiền
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Room Info */}
               <div className="card p-5">

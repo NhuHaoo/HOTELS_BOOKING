@@ -10,6 +10,7 @@ import {
   FaBars,
   FaTimes,
   FaTags,        // 👈 THÊM ICON KHUYẾN MÃI
+  FaMoneyBillWave, // 👈 THÊM ICON SETTLEMENTS
 } from 'react-icons/fa';
 import useAuthStore from '../store/useAuthStore';
 import { useEffect, useState } from 'react';
@@ -37,7 +38,8 @@ const AdminLayout = () => {
     { path: '/admin/hotels', icon: FaHotel, label: 'Khách sạn' },
     { path: '/admin/rooms', icon: FaHome, label: 'Phòng' },
     { path: '/admin/bookings', icon: FaClipboardList, label: 'Đặt phòng' },
-    { path: '/admin/promotions', icon: FaTags, label: 'Khuyến mãi' }, // 👈 MỤC MỚI
+    { path: '/admin/promotions', icon: FaTags, label: 'Khuyến mãi' },
+    { path: '/admin/settlements', icon: FaMoneyBillWave, label: 'Thanh toán' }, // 👈 MỤC MỚI
     { path: '/admin/reviews', icon: FaStar, label: 'Đánh giá' },
     { path: '/admin/users', icon: FaUsers, label: 'Người dùng' },
   ];

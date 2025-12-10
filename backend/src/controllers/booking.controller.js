@@ -374,18 +374,25 @@ exports.cancelBooking = async (req, res) => {
     // Tính phí hủy theo chính sách mới
     let cancellationFee = 0;
     let refundAmount = 0;
+    let hotelPayout = 0;
     let cancellationMessage = '';
 
+    const totalPaid = booking.paidAmount || booking.finalTotal || booking.totalPrice;
+    
     if (daysDiff >= freeCancellationDays) {
-      // Hủy trước 3 ngày → miễn phí (hoàn tiền đầy đủ)
+      // 1. Hủy trước 3 ngày → hoàn tiền 100%, không có phí hủy
       cancellationFee = 0;
-      refundAmount = booking.finalTotal || booking.totalPrice;
+      refundAmount = totalPaid;
+      hotelPayout = 0;
+      booking.refundStatus = 'full';
       cancellationMessage = 'Hủy miễn phí, hoàn tiền đầy đủ';
     } else {
-      // Hủy trong vòng 3 ngày → Mất phí 50% và hoàn lại 50% tổng tiền đã thanh toán
-      const totalPaid = booking.finalTotal || booking.totalPrice;
-      cancellationFee = totalPaid * 0.5; // Mất phí 50%
+      // 2. Hủy trong vòng 3 ngày → phạt 50% tổng tiền đã thanh toán
+      // Phạt 50% này thuộc về KHÁCH SẠN, không thuộc về Admin
+      cancellationFee = totalPaid * 0.5; // Phạt 50%
       refundAmount = totalPaid * 0.5; // Hoàn lại 50%
+      hotelPayout = cancellationFee; // 50% phạt thuộc về khách sạn
+      booking.refundStatus = 'partial';
       cancellationMessage = `Mất phí 50% (${cancellationFee.toLocaleString('vi-VN')} VNĐ). Hoàn lại 50%: ${refundAmount.toLocaleString('vi-VN')} VNĐ`;
     }
 
@@ -394,9 +401,31 @@ exports.cancelBooking = async (req, res) => {
     booking.cancelReason = req.body.reason || 'Cancelled by user';
     booking.cancellationFee = cancellationFee;
     booking.refundAmount = refundAmount;
+    booking.refundedAt = new Date(); // Thời điểm hoàn tiền
+    booking.hotelPayout = hotelPayout;
 
     if (booking.paymentStatus === 'paid') {
       booking.paymentStatus = refundAmount > 0 ? 'refunded' : 'cancelled';
+      
+      // 💰 XỬ LÝ COMMISSION VÀ SETTLEMENT KHI HỦY BOOKING
+      // Booking bị hủy: commission = 0, settlement status = cancelled
+      booking.commission = {
+        amount: 0,
+        rate: booking.commission?.rate || 0,
+        calculatedAt: new Date()
+      };
+      
+      // Nếu hủy trong 3 ngày: settlement = hotelPayout (50% phạt), status = cancelled
+      // Nếu hủy trước 3 ngày: settlement = 0, status = cancelled
+      booking.settlement = {
+        amount: hotelPayout, // 0 nếu hủy trước 3 ngày, = cancellationFee nếu hủy trong 3 ngày
+        status: 'cancelled'
+      };
+      
+      console.log('✓ Booking cancelled - Commission reset, Settlement status = cancelled');
+      console.log(`  - Cancellation Fee: ${cancellationFee}`);
+      console.log(`  - Hotel Payout: ${hotelPayout}`);
+      console.log(`  - Refund Amount: ${refundAmount}`);
     }
 
     await booking.save();
@@ -410,7 +439,8 @@ exports.cancelBooking = async (req, res) => {
       data: {
         ...booking.toObject(),
         cancellationFee,
-        refundAmount
+        refundAmount,
+        hotelPayout
       }
     });
   } catch (error) {
@@ -622,6 +652,7 @@ exports.rescheduleBooking = async (req, res) => {
     
     // Tính phí đổi lịch: changeFee = changeFeePercent% × roomBaseOld (tổng tiền phòng gốc)
     // changeFeePercent từ reschedulePolicy (mặc định 10%)
+    // rescheduleFee là tiền của nền tảng, không thuộc về khách sạn
     const changeFeePercent = booking.reschedulePolicy?.rescheduleFee || 10;
     let changeFee = 0;
     
@@ -634,6 +665,7 @@ exports.rescheduleBooking = async (req, res) => {
     }
     
     // Tổng mới: roomTotalNew + changeFee - discount
+    // Lưu ý: changeFee (rescheduleFee) là tiền của nền tảng, không cộng vào doanh thu khách sạn
     const total = roomTotalNew + changeFee - discount;
     
     // Số tiền đã thanh toán: roomBaseOld - discount
@@ -666,12 +698,18 @@ exports.rescheduleBooking = async (req, res) => {
     booking.totalPrice = roomTotalNew; // Giá phòng mới
     booking.finalTotal = total; // Tổng mới bao gồm phí đổi và trừ giảm giá
     booking.totalAmount = total; // Cập nhật tổng tiền cuối cùng
+    // 💰 Cập nhật originalTotal cho reschedule (giá gốc mới = roomTotalNew)
+    // Lưu ý: originalTotal cũ được lưu trong rescheduleInfo.roomBaseOld
+    booking.originalTotal = roomTotalNew; // Giá gốc mới (trước giảm giá)
     // KHÔNG cập nhật paidAmount - giữ nguyên số tiền đã thanh toán trước đó
     // Đảm bảo paidAmount không bao giờ > totalAmount
     if (booking.paidAmount > total) {
       booking.paidAmount = total;
     }
     booking.rescheduledAt = new Date();
+    // Lưu rescheduleFee vào trường riêng (tiền của nền tảng)
+    booking.rescheduleFee = changeFee;
+    
     booking.rescheduleInfo = {
       oldCheckIn,
       oldCheckOut,
@@ -693,6 +731,29 @@ exports.rescheduleBooking = async (req, res) => {
       total,
       alreadyPaid
     };
+    
+    // Nếu đổi lịch làm thay đổi giá phòng, tính lại commission dựa trên originalTotal mới
+    if (roomTotalNew !== roomBaseOld && booking.paymentStatus === 'paid') {
+      const Hotel = require('../models/Hotel');
+      const { calculateCommission } = require('../utils/commission.utils');
+      
+      const hotel = await Hotel.findById(booking.hotelId);
+      const commissionRate = hotel?.commissionRate || 15; // Default 15%
+      
+      // Commission tính trên giá GỐC mới (roomTotalNew) - không tính rescheduleFee
+      const { commission, settlement, rate } = calculateCommission(roomTotalNew, commissionRate);
+      
+      booking.commission = {
+        amount: commission,
+        rate: rate,
+        calculatedAt: new Date()
+      };
+      
+      booking.settlement = {
+        amount: settlement,
+        status: booking.settlement?.status || 'pending'
+      };
+    }
 
     // Lưu thông tin payment pending cho reschedule nếu có tiền cần thanh toán
     if (extraToPay > 0) {

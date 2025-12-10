@@ -11,6 +11,7 @@ import ManagerRooms from '../pages/manager/ManagerRooms';
 import ManagerBookings from "../pages/manager/ManagerBookings";
 import ManagerHotel from '../pages/manager/ManagerHotel';
 import ManagerReviews from '../pages/manager/ManagerReviews';
+import ManagerSettlements from '../pages/manager/ManagerSettlements';
 
 // Public Pages
 import Home from '../pages/Home';
@@ -42,6 +43,7 @@ import Bookings from '../pages/admin/Bookings';
 import Users from '../pages/admin/Users';
 import Reviews from '../pages/admin/Reviews';
 import Promotions from '../pages/admin/Promotions';
+import Settlements from '../pages/admin/Settlements';
 
 const AppRouter = () => {
   return (
@@ -132,6 +134,7 @@ const AppRouter = () => {
           <Route path="reviews" element={<Reviews />} />
           <Route path="users" element={<Users />} />
           <Route path="promotions" element={<Promotions />} />
+          <Route path="settlements" element={<Settlements />} />
         </Route>
 
         {/* ===== MANAGER ROUTES ===== */}
@@ -149,6 +152,7 @@ const AppRouter = () => {
           <Route path="rooms" element={<ManagerRooms />} />
           <Route path="bookings" element={<ManagerBookings />} />
           <Route path="reviews" element={<ManagerReviews />} />
+          <Route path="settlements" element={<ManagerSettlements />} />
         </Route>
 
         {/* ===== 404 ===== */}

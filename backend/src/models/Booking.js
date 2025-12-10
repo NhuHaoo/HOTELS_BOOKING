@@ -85,6 +85,13 @@ const bookingSchema = new mongoose.Schema({
     }
   },
 
+  // Phí đổi lịch (rescheduleFee) - tiền của nền tảng, không thuộc về khách sạn
+  rescheduleFee: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+
   // Tổng số tiền đã thanh toán thành công
   paidAmount: {
     type: Number,
@@ -165,6 +172,14 @@ const bookingSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  refundStatus: {
+    type: String,
+    enum: ['none', 'partial', 'full'],
+    default: 'none'
+  },
+  refundedAt: {
+    type: Date
+  },
   cancellationPolicy: {
     freeCancellationDays: {
       type: Number,
@@ -225,6 +240,37 @@ const bookingSchema = new mongoose.Schema({
     paymentDate: Date,
     createdAt: Date,
     paidAt: Date
+  },
+  // 💰 COMMISSION & SETTLEMENT (Lợi nhuận và thanh toán cho khách sạn)
+  commission: {
+    amount: {
+      type: Number,
+      default: 0 // Số tiền commission hệ thống lấy
+    },
+    rate: {
+      type: Number,
+      default: 0 // Tỷ lệ commission (%)
+    },
+    calculatedAt: Date // Thời điểm tính commission
+  },
+  settlement: {
+    amount: {
+      type: Number,
+      default: 0 // Số tiền trả cho khách sạn
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'processing', 'paid', 'cancelled'],
+      default: 'pending'
+    },
+    paidAt: Date,
+    transactionId: String // Mã giao dịch thanh toán cho khách sạn
+  },
+  // Số tiền trả cho khách sạn từ phí hủy (khi hủy trong 3 ngày)
+  hotelPayout: {
+    type: Number,
+    default: 0,
+    min: 0
   },
   createdAt: {
     type: Date,

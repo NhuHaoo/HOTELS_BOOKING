@@ -26,6 +26,9 @@
 
   body {
     @apply font-sans text-gray-900 bg-background antialiased;
+    /* CSS Compatibility - Text size adjust */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   /* Selection */
@@ -70,6 +73,10 @@
 
   .input {
     @apply w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all;
+    /* CSS Compatibility - Appearance */
+    -moz-appearance: none;
+    -webkit-appearance: none;
+    appearance: none;
   }
 
   .input-error {
@@ -202,7 +209,9 @@
 
   /* Glass morphism */
   .glass {
-    @apply bg-white/10 backdrop-blur-md border border-white/20;
+    @apply bg-white/10 border border-white/20;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
 
   /* Gradient text */

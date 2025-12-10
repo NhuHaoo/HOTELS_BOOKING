@@ -53,5 +53,17 @@ export const managerAPI = {
   deleteReview: (id) => {
     return axiosClient.delete(`/manager/reviews/${id}`);
   },
+
+  // ======================
+  // SETTLEMENTS
+  // ======================
+
+  getSettlements: (params) => {
+    return axiosClient.get('/manager/settlements', { params });
+  },
+
+  getPendingSettlement: () => {
+    return axiosClient.get('/manager/settlements/pending');
+  },
 };
 

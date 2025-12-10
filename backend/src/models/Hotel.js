@@ -135,6 +135,13 @@ const hotelSchema = new mongoose.Schema({
     ref: 'User',
     default: null
   },
+  // 💰 COMMISSION RATE (Phí hoa hồng)
+  commissionRate: {
+    type: Number,
+    default: 15, // 15% mặc định
+    min: 0,
+    max: 100
+  },
   createdAt: {
     type: Date,
     default: Date.now

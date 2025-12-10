@@ -602,6 +602,60 @@ const BookingDetail = () => {
           );
         })()}
 
+        {/* Thông tin hoàn tiền */}
+        {booking.refundAmount > 0 && (
+          <div className="border border-blue-300 rounded-xl bg-blue-50 p-5 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="inline-flex w-8 h-8 items-center justify-center rounded-full bg-blue-100">
+                <span className="text-blue-600 text-lg">💰</span>
+              </span>
+              <h3 className="font-semibold text-blue-800 text-base">
+                Thông tin hoàn tiền
+              </h3>
+            </div>
+            <div className="space-y-2 text-sm text-gray-800">
+              <div className="flex justify-between items-center">
+                <span>Trạng thái:</span>
+                <span className="font-semibold text-blue-700">
+                  {booking.refundStatus === 'full' && 'Đã hoàn tiền - Hoàn toàn bộ'}
+                  {booking.refundStatus === 'partial' && 'Đã hoàn tiền - Hoàn một phần'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Số tiền đã hoàn:</span>
+                <span className="font-bold text-blue-700">
+                  {formatPrice(booking.refundAmount)} đ
+                </span>
+              </div>
+              {booking.refundedAt && (
+                <div className="flex justify-between items-center">
+                  <span>Thời gian hoàn:</span>
+                  <span className="font-semibold text-gray-700">
+                    {formatDate(booking.refundedAt)}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {/* Hiển thị "Chưa hoàn tiền" nếu booking đã hủy nhưng refundAmount = 0 */}
+        {booking.bookingStatus === 'cancelled' && booking.refundAmount === 0 && (
+          <div className="border border-gray-300 rounded-xl bg-gray-50 p-5 mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="inline-flex w-8 h-8 items-center justify-center rounded-full bg-gray-200">
+                <span className="text-gray-600 text-lg">⏳</span>
+              </span>
+              <h3 className="font-semibold text-gray-800 text-base">
+                Thông tin hoàn tiền
+              </h3>
+            </div>
+            <div className="text-sm text-gray-700">
+              Chưa hoàn tiền / Đang xử lý hoàn tiền
+            </div>
+          </div>
+        )}
+
         {/* Reschedule Payment Pending Alert - Ẩn nếu đang trong quá trình tự động thanh toán */}
         {booking?.reschedulePayment?.status === 'pending' && 
          booking?.reschedulePayment?.amount > 0 &&
@@ -830,6 +884,29 @@ const BookingDetail = () => {
                             <strong>Thời gian còn lại:</strong>{' '}
                             {daysUntilCheckIn} ngày trước ngày nhận phòng
                           </div>
+                          {/* Dự kiến hoàn tiền nếu booking CHƯA hủy */}
+                          {booking.bookingStatus !== 'cancelled' && booking.paymentStatus === 'paid' && (
+                            <div className="mt-2 pt-2 border-t border-blue-200">
+                              {(() => {
+                                const totalPaid = booking.paidAmount || booking.totalAmount || booking.finalTotal || booking.totalPrice || 0;
+                                const halfPaid = totalPaid * 0.5;
+                                
+                                if (daysUntilCheckIn >= freeCancelDays) {
+                                  return (
+                                    <div className="text-green-700 font-medium text-sm">
+                                      💡 Nếu hủy bây giờ, bạn sẽ được hoàn 100% = {formatPrice(totalPaid)} đ
+                                    </div>
+                                  );
+                                } else {
+                                  return (
+                                    <div className="text-orange-700 font-medium text-sm">
+                                      💡 Nếu hủy bây giờ, bạn sẽ được hoàn 50% = {formatPrice(halfPaid)} đ. 50% còn lại là phí hủy phòng thuộc về khách sạn. Phí đổi lịch không hoàn lại.
+                                    </div>
+                                  );
+                                }
+                              })()}
+                            </div>
+                          )}
                           {daysUntilCheckIn >= freeCancelDays ? (
                             <div className="text-green-700 font-medium mt-1">
                               ✓ Bạn có thể hủy miễn phí (còn{' '}

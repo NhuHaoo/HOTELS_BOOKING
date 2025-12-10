@@ -1,5 +1,7 @@
 const Booking = require('../models/Booking');
+const Hotel = require('../models/Hotel');
 const { createPaymentUrl, verifyReturnUrl, checkTransactionStatus } = require('../utils/vnpay.utils');
+const { calculateCommission } = require('../utils/commission.utils');
 const env = require('../config/env');
 
 // @desc    Create VNPay payment URL
@@ -182,6 +184,34 @@ exports.vnpayReturn = async (req, res) => {
           // Nếu đã thanh toán đủ, cập nhật paymentStatus
           if (booking.paidAmount >= totalAmount) {
             booking.paymentStatus = 'paid';
+            
+            // 💰 TÍNH LẠI COMMISSION cho reschedule
+            // Vì originalTotal đã thay đổi sau khi reschedule, cần tính lại commission
+            const hotel = await Hotel.findById(booking.hotelId);
+            const commissionRate = hotel?.commissionRate || 15;
+            
+            // Tính commission trên giá GỐC MỚI (originalTotal sau reschedule)
+            // originalTotal đã được cập nhật trong rescheduleBooking = roomTotalNew
+            const originalTotal = booking.originalTotal || booking.totalPrice || 0;
+            const { commission, settlement, rate } = calculateCommission(originalTotal, commissionRate);
+            
+            // Lưu commission mới (thay thế commission cũ)
+            booking.commission = {
+              amount: commission,
+              rate: rate,
+              calculatedAt: new Date()
+            };
+            
+            booking.settlement = {
+              amount: settlement,
+              status: 'pending'
+            };
+            
+            console.log('✓ Commission recalculated for reschedule payment:');
+            console.log('  - Original Total (new):', originalTotal);
+            console.log('  - Commission Rate:', rate + '%');
+            console.log('  - Commission Amount:', commission);
+            console.log('  - Settlement Amount:', settlement);
           }
           
           // Lưu booking với error handling
@@ -237,6 +267,38 @@ exports.vnpayReturn = async (req, res) => {
         // Đảm bảo paidAmount không bao giờ > totalAmount
         if (booking.paidAmount > totalAmount) {
           booking.paidAmount = totalAmount;
+        }
+        
+        // 💰 TÍNH COMMISSION khi thanh toán thành công
+        if (!booking.commission || !booking.commission.amount || booking.commission.amount === 0) {
+          const hotel = await Hotel.findById(booking.hotelId);
+          const commissionRate = hotel?.commissionRate || 15;
+          
+          // Tính commission trên giá GỐC (originalTotal) - không tính trên giá sau giảm
+          // Điều này đảm bảo khách sạn nhận đủ giá gốc (trừ commission)
+          // Hệ thống chịu 100% chi phí khuyến mãi
+          const originalTotal = booking.originalTotal || booking.totalPrice || 0;
+          const { commission, settlement, rate } = calculateCommission(originalTotal, commissionRate);
+          
+          booking.commission = {
+            amount: commission,
+            rate: rate,
+            calculatedAt: new Date()
+          };
+          
+          booking.settlement = {
+            amount: settlement,
+            status: 'pending'
+          };
+          
+          console.log('✓ Commission calculated:');
+          console.log('  - Original Total:', originalTotal);
+          console.log('  - Discount Amount:', booking.discountAmount || 0);
+          console.log('  - Final Total (customer paid):', totalAmount);
+          console.log('  - Commission Rate:', rate + '%');
+          console.log('  - Commission Amount:', commission);
+          console.log('  - Settlement Amount (to hotel):', settlement);
+          console.log('  - Actual Profit:', commission - (booking.discountAmount || 0));
         }
         
         await booking.save();

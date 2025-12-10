@@ -176,6 +176,23 @@ const Profile = () => {
                                   )}
                                 </div>
                                 
+                                {/* Thông tin hoàn tiền */}
+                                {booking.bookingStatus === 'cancelled' && (
+                                  <div className="text-sm">
+                                    {booking.refundAmount > 0 ? (
+                                      <div className="text-blue-700 font-semibold">
+                                        Đã hoàn: {formatPrice(booking.refundAmount)} 
+                                        {booking.refundStatus === 'full' && ' (100%)'}
+                                        {booking.refundStatus === 'partial' && ' (50%)'}
+                                      </div>
+                                    ) : (
+                                      <div className="text-gray-600">
+                                        Chưa hoàn tiền / Đang xử lý hoàn tiền
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                
                                 {/* Cảnh báo thanh toán đổi lịch */}
                                 {booking?.reschedulePayment?.status === 'pending' && 
                                  booking?.reschedulePayment?.amount > 0 && (

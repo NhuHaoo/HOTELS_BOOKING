@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   getDashboard,
   getRevenue,
+  getProfit,
   getAnalytics,
   getUsers,
   deleteUser,
@@ -15,6 +16,12 @@ const {
   createUser,
   getHotels   
 } = require('../controllers/admin.controller');
+const {
+  getSettlements,
+  getSettlement,
+  createSettlement,
+  paySettlement
+} = require('../controllers/settlement.controller');
 const { protect } = require('../middlewares/auth.middleware');
 const { isAdmin } = require('../middlewares/role.middleware');
 
@@ -25,6 +32,7 @@ router.use(isAdmin);
 // Dashboard & Analytics
 router.get('/dashboard', getDashboard);
 router.get('/revenue', getRevenue);
+router.get('/profit', getProfit);
 router.get('/analytics', getAnalytics);
 
 // Hotels
@@ -44,5 +52,11 @@ router.put('/bookings/:id/cancel', cancelBooking);
 // Reviews
 router.get('/reviews', getReviews);
 router.delete('/reviews/:id', deleteReview);
+
+// Settlements
+router.get('/settlements', getSettlements);
+router.get('/settlements/:id', getSettlement);
+router.post('/settlements/create', createSettlement);
+router.put('/settlements/:id/pay', paySettlement);
 
 module.exports = router;

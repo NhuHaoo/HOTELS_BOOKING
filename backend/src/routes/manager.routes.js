@@ -13,6 +13,10 @@ const {
   getHotel,
   updateHotel
 } = require('../controllers/manager.controller');
+const {
+  getManagerSettlements,
+  getPendingSettlement
+} = require('../controllers/settlement.controller');
 
 const { protect } = require('../middlewares/auth.middleware');
 const { isManager } = require('../middlewares/role.middleware');
@@ -48,5 +52,11 @@ router.delete('/reviews/:id', deleteReview);
 // ===============================
 router.get('/hotel', getHotel);
 router.put('/hotel', updateHotel);
+
+// ===============================
+// SETTLEMENTS
+// ===============================
+router.get('/settlements', getManagerSettlements);
+router.get('/settlements/pending', getPendingSettlement);
 
 module.exports = router;

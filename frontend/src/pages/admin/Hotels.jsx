@@ -36,6 +36,7 @@ const Hotels = () => {
       rescheduleFee: 10,
       allowed: true,
     },
+    commissionRate: 15, // Phí hoa hồng mặc định 15%
     location: {
       type: 'Point',
       coordinates: [106.6297, 10.8231], // Default to Ho Chi Minh
@@ -184,6 +185,7 @@ const Hotels = () => {
         rescheduleFee: 0,
         allowed: true,
       },
+      commissionRate: hotel.commissionRate || 15,
       location: hotel.location || {
         type: 'Point',
         coordinates: [106.6297, 10.8231],
@@ -319,180 +321,218 @@ const Hotels = () => {
         </div>
       </div>
 
-      {/* Hotels Grid */}
-      {hotelsData?.data?.length === 0 ? (
-        <div className="card p-12 text-center">
-          <FaHotel className="text-6xl text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">Chưa có khách sạn nào</h3>
-          <p className="text-gray-500 mb-6">
-            {searchTerm || filterCity 
-              ? 'Không tìm thấy khách sạn phù hợp. Thử thay đổi bộ lọc.'
-              : 'Hãy thêm khách sạn đầu tiên để bắt đầu.'}
-          </p>
-          {!searchTerm && !filterCity && (
-            <button onClick={openCreateModal} className="btn btn-primary">
-              <FaPlus className="mr-2" />
-              Thêm khách sạn mới
+      {/* Hotels Table */}
+      <div className="card overflow-hidden">
+        <div className="overflow-hidden">
+          <table className="w-full table-fixed">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="w-[28%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Khách sạn
+                </th>
+                <th className="w-[12%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Thành phố
+                </th>
+                <th className="w-[8%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Xếp hạng
+                </th>
+                <th className="w-[10%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Phòng
+                </th>
+                <th className="w-[10%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Đánh giá
+                </th>
+                <th className="w-[14%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Trạng thái
+                </th>
+                <th className="w-[18%] px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  Thao tác
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {hotelsData?.data?.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                    <div className="flex flex-col items-center">
+                      <FaHotel className="text-6xl text-gray-300 mb-4" />
+                      <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                        Chưa có khách sạn nào
+                      </h3>
+                      <p className="text-gray-500 mb-6">
+                        {searchTerm || filterCity || statusFilter
+                          ? "Không tìm thấy khách sạn phù hợp. Thử thay đổi bộ lọc."
+                          : "Hãy thêm khách sạn đầu tiên để bắt đầu."}
+                      </p>
+                      {!searchTerm && !filterCity && !statusFilter && (
+                        <button onClick={openCreateModal} className="btn btn-primary">
+                          <FaPlus className="mr-2" />
+                          Thêm khách sạn mới
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                hotelsData?.data?.map((hotel) => {
+                  const getStatusInfo = () => {
+                    if (hotel.status === 'active' && hotel.isActive) {
+                      return { label: 'Đang hoạt động', color: 'bg-green-100 text-green-800' };
+                    } else if (hotel.status === 'suspended') {
+                      return { label: 'Tạm khóa', color: 'bg-yellow-100 text-yellow-800' };
+                    } else if (hotel.status === 'violation') {
+                      return { label: 'Vi phạm', color: 'bg-red-100 text-red-800' };
+                    } else {
+                      return { label: 'Không hoạt động', color: 'bg-gray-100 text-gray-800' };
+                    }
+                  };
+                  const statusInfo = getStatusInfo();
+
+                  return (
+                    <tr key={hotel._id} className="hover:bg-gray-50">
+                      <td className="px-2 py-3">
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <img
+                            src={hotel.images?.[0] || 'https://via.placeholder.com/400x250'}
+                            alt={hotel.name}
+                            className="w-10 h-10 object-cover rounded-lg flex-shrink-0"
+                            onError={(e) => (e.currentTarget.style.display = 'none')}
+                          />
+                          <div className="min-w-0 flex-1 overflow-hidden">
+                            <div className="font-semibold text-xs truncate">{hotel.name}</div>
+                            <div className="text-[10px] text-gray-500 truncate">{hotel.address}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-2 py-3">
+                        <div className="flex items-center text-xs min-w-0">
+                          <FaMapMarkerAlt className="mr-1 text-gray-400 flex-shrink-0" size={10} />
+                          <span className="truncate">{hotel.city}</span>
+                        </div>
+                      </td>
+                      <td className="px-2 py-3">
+                        <div className="flex items-center">
+                          <FaStar className="text-yellow-500 mr-1 flex-shrink-0" size={10} />
+                          <span className="font-semibold text-[11px]">{hotel.rating || 'N/A'}</span>
+                        </div>
+                      </td>
+                      <td className="px-2 py-3">
+                        <span className="text-[11px] whitespace-nowrap">{hotel.totalRooms || 0} phòng</span>
+                      </td>
+                      <td className="px-2 py-3">
+                        <span className="text-[11px] whitespace-nowrap">{hotel.totalReviews || 0} đánh giá</span>
+                      </td>
+                      <td className="px-2 py-3">
+                        <span className={`inline-block px-1.5 py-0.5 text-[10px] rounded-full whitespace-nowrap ${statusInfo.color}`}>
+                          {statusInfo.label}
+                        </span>
+                      </td>
+                      <td className="px-2 py-3 text-right">
+                        <div className="flex justify-end items-center space-x-0.5">
+                          <button
+                            onClick={() => openEditModal(hotel)}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            title="Sửa"
+                          >
+                            <FaEdit size={14} />
+                          </button>
+                          <button
+                            onClick={() => toggleActiveMutation.mutate(hotel._id)}
+                            className={`p-1.5 rounded transition-colors ${
+                              hotel.isActive
+                                ? 'text-yellow-600 hover:bg-yellow-50'
+                                : 'text-green-600 hover:bg-green-50'
+                            }`}
+                            disabled={toggleActiveMutation.isPending}
+                            title={hotel.isActive ? 'Tắt' : 'Bật'}
+                          >
+                            {hotel.isActive ? <FaToggleOn size={14} /> : <FaToggleOff size={14} />}
+                          </button>
+                          {hotel.status !== 'active' && (
+                            <button
+                              onClick={() => updateStatusMutation.mutate({ 
+                                id: hotel._id, 
+                                status: 'active' 
+                              })}
+                              className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
+                              disabled={updateStatusMutation.isPending}
+                              title="Kích hoạt"
+                            >
+                              <FaCheckCircle size={14} />
+                            </button>
+                          )}
+                          {hotel.status !== 'suspended' && (
+                            <button
+                              onClick={() => updateStatusMutation.mutate({ 
+                                id: hotel._id, 
+                                status: 'suspended' 
+                              })}
+                              className="p-1.5 text-yellow-600 hover:bg-yellow-50 rounded transition-colors"
+                              disabled={updateStatusMutation.isPending}
+                              title="Khóa"
+                            >
+                              <FaBan size={14} />
+                            </button>
+                          )}
+                          {hotel.status !== 'violation' && (
+                            <button
+                              onClick={() => {
+                                const reason = window.prompt('Nhập lý do vi phạm:');
+                                if (reason) {
+                                  updateStatusMutation.mutate({ 
+                                    id: hotel._id, 
+                                    status: 'violation',
+                                    violationReason: reason
+                                  });
+                                }
+                              }}
+                              className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                              disabled={updateStatusMutation.isPending}
+                              title="Vi phạm"
+                            >
+                              <FaExclamationTriangle size={14} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDelete(hotel._id)}
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Xóa"
+                          >
+                            <FaTrash size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {hotelsData?.pages > 1 && (
+          <div className="flex justify-center items-center space-x-2 p-4 border-t">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="btn btn-outline btn-sm"
+            >
+              Trước
             </button>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {hotelsData?.data?.map((hotel) => (
-            <div key={hotel._id} className="card overflow-hidden hover:shadow-lg transition-shadow">
-            <img
-              src={hotel.images?.[0] || 'https://via.placeholder.com/400x250'}
-              alt={hotel.name}
-              className="w-full h-48 object-cover"
-            />
-            <div className="p-4">
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex-1">
-                  <h3 className="font-bold text-lg mb-1">{hotel.name}</h3>
-                  <div className="flex items-center text-gray-600 text-sm mb-2">
-                    <FaMapMarkerAlt className="mr-1" />
-                    <span>{hotel.city}</span>
-                  </div>
-                </div>
-                <div className="flex items-center bg-accent text-gray-900 px-2 py-1 rounded">
-                  <FaStar className="mr-1" />
-                  <span className="font-semibold">{hotel.rating}</span>
-                </div>
-              </div>
-              
-              <p className="text-gray-600 text-sm mb-3 line-clamp-2">{hotel.address}</p>
-              
-              <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
-                <span>{hotel.totalRooms || 0} phòng</span>
-                <span>{hotel.totalReviews || 0} đánh giá</span>
-              </div>
-
-              {/* Status Badge */}
-              <div className="mb-3">
-                {hotel.status === 'active' && hotel.isActive ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    <FaCheckCircle /> Đang hoạt động
-                  </span>
-                ) : hotel.status === 'suspended' ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                    <FaBan /> Tạm khóa
-                  </span>
-                ) : hotel.status === 'violation' ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                    <FaExclamationTriangle /> Vi phạm
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                    <FaToggleOff /> Không hoạt động
-                  </span>
-                )}
-              </div>
-
-              <div className="flex flex-col space-y-2">
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => openEditModal(hotel)}
-                  className="flex-1 btn btn-outline btn-sm"
-                >
-                  <FaEdit className="mr-1" />
-                  Sửa
-                </button>
-                  <button
-                    onClick={() => toggleActiveMutation.mutate(hotel._id)}
-                    className={`btn btn-outline btn-sm ${
-                      hotel.isActive 
-                        ? 'text-yellow-600 hover:bg-yellow-50' 
-                        : 'text-green-600 hover:bg-green-50'
-                    }`}
-                    disabled={toggleActiveMutation.isPending}
-                  >
-                    {hotel.isActive ? <FaToggleOn /> : <FaToggleOff />}
-                  </button>
-                <button
-                  onClick={() => handleDelete(hotel._id)}
-                  className="btn btn-outline btn-sm text-red-600 hover:bg-red-50"
-                >
-                  <FaTrash />
-                </button>
-                </div>
-                
-                {/* Status Management Buttons (Admin only) */}
-                <div className="flex space-x-1">
-                  {hotel.status !== 'active' && (
-                    <button
-                      onClick={() => updateStatusMutation.mutate({ 
-                        id: hotel._id, 
-                        status: 'active' 
-                      })}
-                      className="flex-1 btn btn-outline btn-xs text-green-600 hover:bg-green-50"
-                      disabled={updateStatusMutation.isPending}
-                    >
-                      <FaCheckCircle className="mr-1" />
-                      Kích hoạt
-                    </button>
-                  )}
-                  {hotel.status !== 'suspended' && (
-                    <button
-                      onClick={() => updateStatusMutation.mutate({ 
-                        id: hotel._id, 
-                        status: 'suspended' 
-                      })}
-                      className="flex-1 btn btn-outline btn-xs text-yellow-600 hover:bg-yellow-50"
-                      disabled={updateStatusMutation.isPending}
-                    >
-                      <FaBan className="mr-1" />
-                      Khóa
-                    </button>
-                  )}
-                  {hotel.status !== 'violation' && (
-                    <button
-                      onClick={() => {
-                        const reason = window.prompt('Nhập lý do vi phạm:');
-                        if (reason) {
-                          updateStatusMutation.mutate({ 
-                            id: hotel._id, 
-                            status: 'violation',
-                            violationReason: reason
-                          });
-                        }
-                      }}
-                      className="flex-1 btn btn-outline btn-xs text-red-600 hover:bg-red-50"
-                      disabled={updateStatusMutation.isPending}
-                    >
-                      <FaExclamationTriangle className="mr-1" />
-                      Vi phạm
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
+            <span className="text-sm text-gray-600">
+              Trang {page} / {hotelsData.pages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(hotelsData.pages, p + 1))}
+              disabled={page === hotelsData.pages}
+              className="btn btn-outline btn-sm"
+            >
+              Sau
+            </button>
           </div>
-        ))}
-        </div>
-      )}
-
-      {/* Pagination */}
-      {hotelsData?.pages > 1 && (
-        <div className="flex justify-center items-center space-x-2">
-          <button
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="btn btn-outline btn-sm"
-          >
-            Trước
-          </button>
-          <span className="text-sm text-gray-600">
-            Trang {page} / {hotelsData.pages}
-          </span>
-          <button
-            onClick={() => setPage(p => Math.min(hotelsData.pages, p + 1))}
-            disabled={page === hotelsData.pages}
-            className="btn btn-outline btn-sm"
-          >
-            Sau
-          </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Create/Edit Modal */}
       {showModal && (
@@ -504,115 +544,120 @@ const Hotels = () => {
               </h2>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-2">Tên khách sạn *</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="input"
-                    required
-                  />
-                </div>
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              {/* Thông tin cơ bản */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Thông tin cơ bản</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium mb-2">Tên khách sạn *</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="input"
+                      required
+                    />
+                  </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-2">Mô tả *</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="input"
-                    rows="3"
-                    required
-                  />
-                </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium mb-2">Mô tả *</label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="input"
+                      rows="3"
+                      required
+                    />
+                  </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-2">Địa chỉ *</label>
-                  <input
-                    type="text"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className="input"
-                    required
-                  />
-                </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium mb-2">Địa chỉ *</label>
+                    <input
+                      type="text"
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      className="input"
+                      required
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">Thành phố *</label>
-                  <input
-                    type="text"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="input"
-                    required
-                  />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Thành phố *</label>
+                    <input
+                      type="text"
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      className="input"
+                      required
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">Số điện thoại *</label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="input"
-                    required
-                  />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Số điện thoại *</label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="input"
+                      required
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">Email</label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="input"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Email</label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="input"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">Xếp hạng sao (1-5)</label>
-                  <input
-                    type="number"
-                    value={formData.rating}
-                    onChange={(e) => setFormData({ ...formData, rating: parseInt(e.target.value) })}
-                    className="input"
-                    min="1"
-                    max="5"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Xếp hạng sao (1-5)</label>
+                    <input
+                      type="number"
+                      value={formData.rating}
+                      onChange={(e) => setFormData({ ...formData, rating: parseInt(e.target.value) })}
+                      className="input"
+                      min="1"
+                      max="5"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">Giờ nhận phòng</label>
-                  <input
-                    type="time"
-                    value={formData.checkInTime}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      checkInTime: e.target.value
-                    })}
-                    className="input"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Giờ nhận phòng</label>
+                    <input
+                      type="time"
+                      value={formData.checkInTime}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        checkInTime: e.target.value
+                      })}
+                      className="input"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">Giờ trả phòng</label>
-                  <input
-                    type="time"
-                    value={formData.checkOutTime}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      checkOutTime: e.target.value
-                    })}
-                    className="input"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Giờ trả phòng</label>
+                    <input
+                      type="time"
+                      value={formData.checkOutTime}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        checkOutTime: e.target.value
+                      })}
+                      className="input"
+                    />
+                  </div>
                 </div>
+              </div>
 
-                {/* Chính sách hủy phòng */}
-                <div className="md:col-span-2 border-t pt-4 mt-4">
-                  <h3 className="text-lg font-semibold mb-3">Chính sách hủy phòng</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Chính sách hủy phòng */}
+              <div className="space-y-4 border-t pt-6">
+                <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Chính sách hủy phòng</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium mb-2">
                         Số ngày hủy miễn phí
@@ -671,13 +716,13 @@ const Hotels = () => {
                         <option value="false">Không</option>
                       </select>
                     </div>
-                  </div>
                 </div>
+              </div>
 
-                {/* Chính sách đổi lịch */}
-                <div className="md:col-span-2 border-t pt-4 mt-4">
-                  <h3 className="text-lg font-semibold mb-3">Chính sách đổi lịch</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Chính sách đổi lịch */}
+              <div className="space-y-4 border-t pt-6">
+                <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Chính sách đổi lịch</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium mb-2">
                         Số ngày đổi miễn phí
@@ -736,44 +781,80 @@ const Hotels = () => {
                         <option value="false">Không</option>
                       </select>
                     </div>
+                </div>
+              </div>
+
+              {/* Phí hoa hồng */}
+              <div className="space-y-4 border-t pt-6">
+                <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">💰 Phí hoa hồng</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Tỷ lệ hoa hồng (%)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      value={formData.commissionRate || 15}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        commissionRate: parseFloat(e.target.value) || 15
+                      })}
+                      className="input"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Tỷ lệ hoa hồng hệ thống thu từ mỗi booking (mặc định: 15%)
+                    </p>
                   </div>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">Kinh độ (Longitude)</label>
-                  <input
-                    type="number"
-                    step="0.000001"
-                    value={formData.location.coordinates[0]}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      location: {
-                        ...formData.location,
-                        coordinates: [parseFloat(e.target.value), formData.location.coordinates[1]]
-                      }
-                    })}
-                    className="input"
-                  />
+              {/* Vị trí */}
+              <div className="space-y-4 border-t pt-6">
+                <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">📍 Vị trí</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Kinh độ (Longitude)</label>
+                    <input
+                      type="number"
+                      step="0.000001"
+                      value={formData.location.coordinates[0]}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        location: {
+                          ...formData.location,
+                          coordinates: [parseFloat(e.target.value), formData.location.coordinates[1]]
+                        }
+                      })}
+                      className="input"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Vĩ độ (Latitude)</label>
+                    <input
+                      type="number"
+                      step="0.000001"
+                      value={formData.location.coordinates[1]}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        location: {
+                          ...formData.location,
+                          coordinates: [formData.location.coordinates[0], parseFloat(e.target.value)]
+                        }
+                      })}
+                      className="input"
+                    />
+                  </div>
                 </div>
+              </div>
 
+              {/* Hình ảnh */}
+              <div className="space-y-4 border-t pt-6">
+                <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">🖼️ Hình ảnh</h3>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Vĩ độ (Latitude)</label>
-                  <input
-                    type="number"
-                    step="0.000001"
-                    value={formData.location.coordinates[1]}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      location: {
-                        ...formData.location,
-                        coordinates: [formData.location.coordinates[0], parseFloat(e.target.value)]
-                      }
-                    })}
-                    className="input"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
                   <label className="block text-sm font-medium mb-2">
                     URL ảnh (mỗi URL một dòng)
                   </label>
@@ -785,9 +866,12 @@ const Hotels = () => {
                     placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"
                   />
                 </div>
+              </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-3">Tiện nghi khách sạn</label>
+              {/* Tiện nghi */}
+              <div className="space-y-4 border-t pt-6">
+                <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">✨ Tiện nghi khách sạn</h3>
+                <div>
                   
                   {/* Preset amenities */}
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
@@ -859,7 +943,7 @@ const Hotels = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-3 pt-4 border-t">
+              <div className="flex justify-end space-x-3 pt-6 border-t">
                 <button
                   type="button"
                   onClick={closeModal}

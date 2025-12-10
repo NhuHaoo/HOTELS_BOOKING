@@ -15,6 +15,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { promotionAPI } from "../../api/promotion.api";
 import { hotelAPI } from "../../api/hotel.api";
 import Loading from "../../components/Loading";
+import { FaSearch, FaEdit, FaTrash, FaPlus } from "react-icons/fa";
+import { formatPrice } from "../../utils/formatPrice";
 
 const EMPTY_FORM = {
   name: "",
@@ -39,6 +41,10 @@ export default function Promotions() {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [errorMsg, setErrorMsg] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [page, setPage] = useState(1);
 
   /* ============ LOAD LIST TỪ BACKEND ============ */
   const { data, isLoading } = useQuery({
@@ -56,14 +62,60 @@ export default function Promotions() {
   });
 
   // BE trả: { success, count, data: [...] }
-  const promotions = data?.data || [];
+  const allPromotions = data?.data || [];
   const hotels = hotelsData?.data || [];
+
+  // Filter promotions
+  const filteredPromotions = useMemo(() => {
+    let filtered = [...allPromotions];
+
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (p) =>
+          p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.code?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Type filter
+    if (filterType) {
+      filtered = filtered.filter((p) => p.type === filterType);
+    }
+
+    // Status filter
+    if (filterStatus) {
+      const now = new Date();
+      filtered = filtered.filter((p) => {
+        const start = new Date(p.startDate);
+        const end = new Date(p.endDate);
+        if (filterStatus === "active") {
+          return p.isActive && start <= now && end >= now;
+        } else if (filterStatus === "expired") {
+          return end < now || !p.isActive;
+        } else if (filterStatus === "upcoming") {
+          return start > now;
+        }
+        return true;
+      });
+    }
+
+    return filtered;
+  }, [allPromotions, searchTerm, filterType, filterStatus]);
+
+  // Pagination
+  const limit = 10;
+  const totalPages = Math.ceil(filteredPromotions.length / limit);
+  const paginatedPromotions = filteredPromotions.slice(
+    (page - 1) * limit,
+    page * limit
+  );
 
   const stats = useMemo(() => {
     const now = new Date();
     let active = 0;
     let expired = 0;
-    promotions.forEach((p) => {
+    allPromotions.forEach((p) => {
       const start = new Date(p.startDate);
       const end = new Date(p.endDate);
       if (p.isActive && start <= now && end >= now) active++;
@@ -72,13 +124,13 @@ export default function Promotions() {
     return {
       active,
       expired,
-      total: promotions.length,
-      usedTotal: promotions.reduce(
+      total: allPromotions.length,
+      usedTotal: allPromotions.reduce(
         (sum, p) => sum + (p.usedCount || 0),
         0
       ),
     };
-  }, [promotions]);
+  }, [allPromotions]);
 
   /* ============ MUTATIONS ============ */
   const createMutation = useMutation({
@@ -252,253 +304,297 @@ export default function Promotions() {
     }
   };
 
+  const getStatusInfo = (promo) => {
+    const now = new Date();
+    const start = new Date(promo.startDate);
+    const end = new Date(promo.endDate);
+
+    if (!promo.isActive) {
+      return { label: "Tạm dừng", color: "bg-gray-100 text-gray-800" };
+    }
+    if (end < now) {
+      return { label: "Hết hạn", color: "bg-red-100 text-red-800" };
+    }
+    if (start > now) {
+      return { label: "Sắp diễn ra", color: "bg-yellow-100 text-yellow-800" };
+    }
+    return { label: "Đang hoạt động", color: "bg-green-100 text-green-800" };
+  };
+
   /* ============ RENDER ============ */
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loading />
-      </div>
-    );
+    return <Loading fullScreen />;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Quản lý khuyến mãi</h1>
+          <p className="text-gray-600">Tổng số: {stats.total} khuyến mãi</p>
+        </div>
+        <button onClick={openCreate} className="btn btn-primary">
+          <FaPlus className="mr-2" />
+          Thêm khuyến mãi mới
+        </button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="card p-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                <Gift className="w-8 h-8 text-blue-600" />
-                Quản lý khuyến mãi
-              </h1>
-              <p className="text-gray-600 mt-2">
-                Tạo và quản lý các chương trình ưu đãi cho hệ thống
-              </p>
+              <p className="text-gray-600 text-sm font-medium">Tổng khuyến mãi</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
             </div>
-            <button
-              onClick={openCreate}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transition-all duration-200 font-medium"
-            >
-              <Plus className="w-5 h-5" />
-              Thêm khuyến mãi
-            </button>
-          </div>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">
-                  Tổng khuyến mãi
-                </p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">
-                  {stats.total}
-                </p>
-              </div>
-              <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center">
-                <Gift className="w-7 h-7 text-blue-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">
-                  Đang hoạt động
-                </p>
-                <p className="text-3xl font-bold text-green-600 mt-1">
-                  {stats.active}
-                </p>
-              </div>
-              <div className="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center">
-                <TrendingUp className="w-7 h-7 text-green-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">
-                  Tổng lượt sử dụng
-                </p>
-                <p className="text-3xl font-bold text-purple-600 mt-1">
-                  {stats.usedTotal}
-                </p>
-              </div>
-              <div className="w-14 h-14 bg-purple-100 rounded-2xl flex items-center justify-center">
-                <Tag className="w-7 h-7 text-purple-600" />
-              </div>
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Gift className="w-6 h-6 text-blue-600" />
             </div>
           </div>
         </div>
 
-        {/* Promotions Grid */}
-        {promotions.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {promotions.map((promo) => {
-              const typeInfo = getTypeInfo(promo.type);
-              const TypeIcon = typeInfo.icon;
+        <div className="card p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-600 text-sm font-medium">Đang hoạt động</p>
+              <p className="text-2xl font-bold text-green-600 mt-1">{stats.active}</p>
+            </div>
+            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
+        </div>
 
-              return (
-                <div
-                  key={promo._id}
-                  className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 group"
-                >
-                  {/* Card Header */}
-                  <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-6 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
-                    <div className="relative z-10">
-                      <div className="flex items-start justify-between mb-3">
-                        <div
-                          className={`${typeInfo.color} px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1`}
-                        >
-                          <TypeIcon className="w-3 h-3" />
-                          {typeInfo.label}
-                        </div>
-                        {promo.isActive ? (
-                          <span className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-semibold">
-                            Hoạt động
-                          </span>
-                        ) : (
-                          <span className="px-3 py-1 bg-gray-200 text-gray-600 rounded-lg text-xs font-semibold">
-                            Tạm dừng
-                          </span>
-                        )}
-                      </div>
-                      <h3 className="text-xl font-bold text-white mb-2">
-                        {promo.name}
+        <div className="card p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-600 text-sm font-medium">Tổng lượt sử dụng</p>
+              <p className="text-2xl font-bold text-purple-600 mt-1">{stats.usedTotal}</p>
+            </div>
+            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+              <Tag className="w-6 h-6 text-purple-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="card p-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="relative">
+            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Tìm kiếm theo tên hoặc mã..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(1);
+              }}
+              className="input pl-10"
+            />
+          </div>
+          <select
+            value={filterType}
+            onChange={(e) => {
+              setFilterType(e.target.value);
+              setPage(1);
+            }}
+            className="input"
+          >
+            <option value="">Tất cả loại</option>
+            <option value="coupon">Mã giảm giá</option>
+            <option value="seasonal">Theo mùa</option>
+            <option value="duration">Theo số đêm</option>
+          </select>
+          <select
+            value={filterStatus}
+            onChange={(e) => {
+              setFilterStatus(e.target.value);
+              setPage(1);
+            }}
+            className="input"
+          >
+            <option value="">Tất cả trạng thái</option>
+            <option value="active">Đang hoạt động</option>
+            <option value="expired">Hết hạn</option>
+            <option value="upcoming">Sắp diễn ra</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Promotions Table */}
+      <div className="card overflow-hidden">
+        <div className="overflow-hidden">
+          <table className="w-full table-fixed">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="w-[20%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Tên khuyến mãi
+                </th>
+                <th className="w-[12%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Mã
+                </th>
+                <th className="w-[10%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Loại
+                </th>
+                <th className="w-[12%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Giảm giá
+                </th>
+                <th className="w-[18%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Thời gian
+                </th>
+                <th className="w-[10%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Đã dùng
+                </th>
+                <th className="w-[10%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Trạng thái
+                </th>
+                <th className="w-[8%] px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  Thao tác
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {paginatedPromotions.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
+                    <div className="flex flex-col items-center">
+                      <Gift className="text-6xl text-gray-300 mb-4" />
+                      <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                        Chưa có khuyến mãi nào
                       </h3>
-                      {promo.code && (
-                        <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-lg">
-                          <Tag className="w-4 h-4 text-white" />
-                          <span className="font-mono text-white font-bold text-sm">
+                      <p className="text-gray-500 mb-6">
+                        {searchTerm || filterType || filterStatus
+                          ? "Không tìm thấy khuyến mãi phù hợp. Thử thay đổi bộ lọc."
+                          : "Hãy thêm khuyến mãi đầu tiên để bắt đầu."}
+                      </p>
+                      {!searchTerm && !filterType && !filterStatus && (
+                        <button onClick={openCreate} className="btn btn-primary">
+                          <FaPlus className="mr-2" />
+                          Thêm khuyến mãi mới
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                paginatedPromotions.map((promo) => {
+                  const typeInfo = getTypeInfo(promo.type);
+                  const statusInfo = getStatusInfo(promo);
+                  return (
+                    <tr key={promo._id} className="hover:bg-gray-50">
+                      <td className="px-2 py-3">
+                        <div className="font-semibold text-sm truncate">{promo.name}</div>
+                        {promo.description && (
+                          <div className="text-xs text-gray-500 truncate mt-1">
+                            {promo.description}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-2 py-3">
+                        {promo.code ? (
+                          <span className="font-mono text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded">
                             {promo.code}
                           </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-2 py-3">
+                        <span className={`px-2 py-0.5 text-xs rounded-full ${typeInfo.color}`}>
+                          {typeInfo.label}
+                        </span>
+                      </td>
+                      <td className="px-2 py-3">
+                        <div className="font-semibold text-sm text-orange-600">
+                          {promo.discountType === "percent"
+                            ? `${promo.discountValue}%`
+                            : formatPrice(promo.discountValue)}
                         </div>
-                      )}
-                      {promo.applyType === "hotel" && promo.hotelId && (
-                        <div className="mt-2 inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-lg">
-                          <span className="text-white text-xs font-medium">
-                            {Array.isArray(promo.hotelId)
-                              ? `Áp dụng cho ${promo.hotelId.length} khách sạn`
-                              : typeof promo.hotelId === "object" && promo.hotelId?.name
-                              ? `Áp dụng cho: ${promo.hotelId.name} - ${promo.hotelId.city || ""}`
-                              : "Áp dụng cho khách sạn"}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Card Body */}
-                  <div className="p-6">
-                    {/* Discount Value */}
-                    <div className="mb-6">
-                      <div className="flex items-center justify-center bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl p-6 border-2 border-dashed border-orange-300">
-                        <div className="text-center">
-                          <p className="text-sm text-gray-600 mb-1">Giảm giá</p>
-                          <div className="flex items-center justify-center gap-2">
-                            <Percent className="w-6 h-6 text-orange-600" />
-                            <p className="text-4xl font-bold text-orange-600">
-                              {promo.discountType === "percent"
-                                ? `${promo.discountValue}`
-                                : `${promo.discountValue.toLocaleString()} đ`}
-                            </p>
+                        {promo.minOrderAmount > 0 && (
+                          <div className="text-xs text-gray-500">
+                            Tối thiểu: {formatPrice(promo.minOrderAmount)}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-2 py-3">
+                        <div className="text-xs">
+                          <div>
+                            {promo.startDate
+                              ? new Date(promo.startDate).toLocaleDateString("vi-VN")
+                              : "—"}
+                          </div>
+                          <div className="text-gray-500">
+                            {promo.endDate
+                              ? new Date(promo.endDate).toLocaleDateString("vi-VN")
+                              : "—"}
                           </div>
                         </div>
-                      </div>
-                    </div>
-
-                    {/* Details */}
-                    <div className="space-y-3 text-sm">
-                      {promo.minOrderAmount > 0 && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-600">
-                            Đơn tối thiểu:
-                          </span>
-                          <span className="font-semibold text-gray-900">
-                            {promo.minOrderAmount.toLocaleString()} đ
-                          </span>
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-600">Thời gian:</span>
-                        <span className="font-medium text-gray-700">
-                          {promo.startDate
-                            ? new Date(
-                                promo.startDate
-                              ).toLocaleDateString("vi-VN")
-                            : "—"}{" "}
-                          -{" "}
-                          {promo.endDate
-                            ? new Date(
-                                promo.endDate
-                              ).toLocaleDateString("vi-VN")
-                            : "—"}
-                        </span>
-                      </div>
-
-                      {promo.usedCount !== undefined && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-600">Đã sử dụng:</span>
+                      </td>
+                      <td className="px-2 py-3">
+                        <div className="text-xs">
                           <span className="font-semibold text-blue-600">
-                            {promo.usedCount} lượt
+                            {promo.usedCount || 0}
                           </span>
+                          {promo.usageLimit && (
+                            <span className="text-gray-500"> / {promo.usageLimit}</span>
+                          )}
                         </div>
-                      )}
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-600">Áp dụng cho:</span>
-                        <span className="font-semibold text-gray-900">
-                          {promo.applyType === "global"
-                            ? "Toàn hệ thống"
-                            : promo.applyType === "hotel" && promo.hotelId
-                            ? Array.isArray(promo.hotelId)
-                              ? `${promo.hotelId.length} khách sạn`
-                              : typeof promo.hotelId === "object" && promo.hotelId?.name
-                              ? `${promo.hotelId.name}`
-                              : "Khách sạn"
-                            : "Phòng cụ thể"}
+                      </td>
+                      <td className="px-2 py-3">
+                        <span className={`px-2 py-0.5 text-xs rounded-full whitespace-nowrap ${statusInfo.color}`}>
+                          {statusInfo.label}
                         </span>
-                      </div>
-                    </div>
+                      </td>
+                      <td className="px-2 py-3 text-right">
+                        <div className="flex justify-end space-x-1">
+                          <button
+                            onClick={() => openEdit(promo)}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            title="Sửa"
+                          >
+                            <FaEdit size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(promo._id)}
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Xóa"
+                          >
+                            <FaTrash size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
 
-                    {/* Actions */}
-                    <div className="flex gap-2 mt-6 pt-6 border-t border-gray-100">
-                      <button
-                        onClick={() => openEdit(promo)}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors font-medium"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                        Sửa
-                      </button>
-                      <button
-                        onClick={() => handleDelete(promo._id)}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors font-medium"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Xóa
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="bg-white rounded-2xl shadow-md p-12 text-center">
-            <Gift className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">Chưa có khuyến mãi nào</p>
-            <p className="text-gray-400 text-sm mt-2">
-              Nhấn nút "Thêm khuyến mãi" để tạo mới.
-            </p>
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center space-x-2 p-4 border-t">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="btn btn-outline btn-sm"
+            >
+              Trước
+            </button>
+            <span className="text-sm text-gray-600">
+              Trang {page} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="btn btn-outline btn-sm"
+            >
+              Sau
+            </button>
           </div>
         )}
       </div>
