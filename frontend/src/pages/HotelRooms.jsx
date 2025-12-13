@@ -43,6 +43,15 @@ const HotelRooms = () => {
   const [filterGuests, setFilterGuests] = useState(searchFilters?.adults || 2);
   const [filterChildren, setFilterChildren] = useState(searchFilters?.children || 0);
 
+  // Tạo currentFilters object để dùng trong query
+  const currentFilters = {
+    ...(filterCheckIn && { checkIn: filterCheckIn }),
+    ...(filterCheckOut && { checkOut: filterCheckOut }),
+    ...(filterGuests && { adults: filterGuests }),
+    ...(filterChildren && { children: filterChildren }),
+    hotelId: hotelId, // Thêm hotelId để filter theo khách sạn
+  };
+
   // Hotel
   const {
     data: hotelRes,
@@ -56,14 +65,15 @@ const HotelRooms = () => {
 
   const hotel = hotelFromState || hotelRes?.data || hotelRes || null;
 
-  // Rooms
+  // Rooms - Sử dụng getRooms với hotelId và filters để hỗ trợ filter theo ngày và số khách
   const {
     data: roomsRes,
     isLoading: roomsLoading,
     isError: roomsError,
+    refetch: refetchRooms,
   } = useQuery({
-    queryKey: ["rooms-by-hotel", hotelId, searchFilters],
-    queryFn: () => roomAPI.getRoomsByHotel(hotelId, searchFilters || {}),
+    queryKey: ["rooms-by-hotel", hotelId, currentFilters],
+    queryFn: () => roomAPI.getRooms(currentFilters),
     enabled: !!hotelId,
   });
 
@@ -134,16 +144,31 @@ const HotelRooms = () => {
 
   // Handle filter search
   const handleFilterSearch = () => {
-    const newFilters = {
-      checkIn: filterCheckIn,
-      checkOut: filterCheckOut,
-      adults: filterGuests,
-      children: filterChildren,
-    };
-    navigate(`/hotels/${hotelId}/rooms`, {
-      state: { hotel: hotel, searchFilters: newFilters },
-    });
-    window.location.reload(); // Reload to apply filters
+    // Validate dates
+    if (filterCheckIn && filterCheckOut) {
+      const checkInDate = new Date(filterCheckIn);
+      const checkOutDate = new Date(filterCheckOut);
+      
+      if (checkOutDate <= checkInDate) {
+        toast.error('Ngày trả phòng phải sau ngày nhận phòng');
+        return;
+      }
+    }
+
+    if (!filterCheckIn || !filterCheckOut) {
+      toast.error('Vui lòng chọn đầy đủ ngày nhận và trả phòng');
+      return;
+    }
+
+    // Refetch rooms với filters mới
+    refetchRooms();
+    
+    // Scroll to rooms section
+    setTimeout(() => {
+      scrollToRooms();
+    }, 300);
+    
+    toast.success('Đang tìm phòng phù hợp...');
   };
 
   // Ảnh khách sạn
@@ -438,7 +463,18 @@ const HotelRooms = () => {
               <h2 className="text-2xl font-semibold mb-6">Đang có các hạng phòng</h2>
 
               {rooms.length === 0 ? (
-                <p className="text-sm text-gray-600 text-center py-8">Khách sạn hiện chưa có phòng khả dụng.</p>
+                <div className="text-center py-8">
+                  <p className="text-sm text-gray-600 mb-2">
+                    {filterCheckIn && filterCheckOut
+                      ? 'Không có phòng phù hợp với tiêu chí tìm kiếm của bạn.'
+                      : 'Khách sạn hiện chưa có phòng khả dụng.'}
+                  </p>
+                  {filterCheckIn && filterCheckOut && (
+                    <p className="text-xs text-gray-500">
+                      Vui lòng thử chọn khoảng thời gian hoặc số khách khác.
+                    </p>
+                  )}
+                </div>
               ) : (
                 <div className="space-y-4">
                   {rooms.map((room) => (
@@ -687,8 +723,8 @@ const HotelRooms = () => {
                 <div>
                   <div className="text-xs text-gray-500 mb-1">Ngày nhận phòng</div>
                   <div className="text-sm font-semibold">
-                    {searchFilters?.checkIn 
-                      ? new Date(searchFilters.checkIn).toLocaleDateString('vi-VN', { 
+                    {filterCheckIn 
+                      ? new Date(filterCheckIn).toLocaleDateString('vi-VN', { 
                           day: '2-digit', 
                           month: '2-digit', 
                           year: 'numeric' 
@@ -699,8 +735,8 @@ const HotelRooms = () => {
                 <div>
                   <div className="text-xs text-gray-500 mb-1">Ngày trả phòng</div>
                   <div className="text-sm font-semibold">
-                    {searchFilters?.checkOut 
-                      ? new Date(searchFilters.checkOut).toLocaleDateString('vi-VN', { 
+                    {filterCheckOut 
+                      ? new Date(filterCheckOut).toLocaleDateString('vi-VN', { 
                           day: '2-digit', 
                           month: '2-digit', 
                           year: 'numeric' 
@@ -708,12 +744,12 @@ const HotelRooms = () => {
                       : 'Chưa chọn ngày'}
                   </div>
                 </div>
-                {(searchFilters?.adults || searchFilters?.children) && (
+                {(filterGuests || filterChildren) && (
                   <div>
                     <div className="text-xs text-gray-500 mb-1">Số khách</div>
                     <div className="text-sm font-semibold">
-                      {searchFilters.adults ? `${searchFilters.adults} người lớn` : ''}
-                      {searchFilters.children ? `, ${searchFilters.children} trẻ em` : ''}
+                      {filterGuests ? `${filterGuests} người lớn` : ''}
+                      {filterChildren ? `, ${filterChildren} trẻ em` : ''}
                     </div>
                   </div>
                 )}

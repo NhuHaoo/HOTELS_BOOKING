@@ -5,14 +5,22 @@ import { FaTag } from 'react-icons/fa';
 const HeroPromoBar = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['active-coupons'],
-    queryFn: () =>
-      promotionAPI
-        .getActiveCoupons()
-        .then((res) => res.data?.data || res.data),
+    queryFn: async () => {
+      try {
+        const res = await promotionAPI.getActiveCoupons();
+        // Backend trả về: { success: true, data: [...] }
+        // Đảm bảo luôn trả về array
+        const coupons = res.data?.data || res.data || [];
+        return Array.isArray(coupons) ? coupons : [];
+      } catch (error) {
+        console.error('Error fetching active coupons:', error);
+        return [];
+      }
+    },
   });
 
   if (isLoading) return null;
-  if (!data || data.length === 0) return null;
+  if (!data || !Array.isArray(data) || data.length === 0) return null;
 
   return (
     <div className="mt-3 w-full">
