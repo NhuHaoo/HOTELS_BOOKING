@@ -19,6 +19,17 @@ import HeroPromoBar from '../components/HeroPromoBar';
 import { hotelAPI } from '../api/hotel.api';
 import { useQuery } from '@tanstack/react-query';
 
+// Helper function: Remove Vietnamese tones
+const removeVietnameseTones = (str) => {
+  if (!str) return '';
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase();
+};
+
 const HeroSearchBar = () => {
   const navigate = useNavigate();
   const { setSearchParams } = useSearchStore();
@@ -110,17 +121,7 @@ const HeroSearchBar = () => {
     staleTime: 5 * 60 * 1000, // Cache 5 phút
   });
 
-  // Search hotels cho autocomplete
-  const { data: hotelsData } = useQuery({
-    queryKey: ['hotels-autocomplete', searchData.search],
-    queryFn: () => hotelAPI.getHotels({ 
-      search: searchData.search, 
-      limit: 5,
-      page: 1 
-    }),
-    enabled: searchData.search.length >= 2, // Chỉ search khi có ít nhất 2 ký tự
-    staleTime: 30000, // Cache 30 giây
-  });
+  // Removed hotels autocomplete - chỉ hiển thị địa điểm
 
   // Đếm số lượng hotels theo city
   const getHotelCountByCity = (cityName) => {
@@ -131,20 +132,21 @@ const HeroSearchBar = () => {
 
   // Popular destinations với thumbnail
   const popularDestinations = [
-    { name: 'Đà Lạt', image: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=150&h=30&fit=crop' },
-    { name: 'Phú Yên', image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=150&h=30&fit=crop' },
-    { name: 'Đà Nẵng', image: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=150&h=30&fit=crop' },
-    { name: 'Hà Nội', image: 'https://images.unsplash.com/photo-1528181304800-259b08848526?w=150&h=30&fit=crop' },
-    { name: 'Hội An', image: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=150&h=30&fit=crop' },
-    { name: 'Hải Phòng', image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=150&h=30&fit=crop' },
-    { name: 'Nha Trang', image: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=150&h=30&fit=crop' },
-    { name: 'Phú Quốc', image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=150&h=30&fit=crop' },
-    { name: 'Hồ Chí Minh', image: 'https://images.unsplash.com/photo-1583417319070-4a69b38b8fed?w=150&h=30&fit=crop' },
+    { name: 'Đà Lạt', image: 'https://res.cloudinary.com/dsjdn1ajs/image/upload/v1765628577/%C4%90%C3%A0_l%E1%BA%A1t_zhfh3l.png' },
+    { name: 'Phú Yên', image: 'https://res.cloudinary.com/dsjdn1ajs/image/upload/v1765628133/ph%C3%BA_y%C3%AAn_vlri8f.jpg' },
+    { name: 'Đà Nẵng', image: 'https://res.cloudinary.com/dsjdn1ajs/image/upload/v1765629341/%C4%91%C3%A0_n%E1%BA%B5ng_coq4xj.jpg' },
+    { name: 'Hà Nội', image: 'https://res.cloudinary.com/dsjdn1ajs/image/upload/v1765628129/h%C3%A0_n%E1%BB%99i_fxuamd.jpg' },
+    { name: 'Hội An', image: 'https://res.cloudinary.com/dsjdn1ajs/image/upload/v1765629296/h%E1%BB%99i_annn_o5drik.jpg' },
+    { name: 'Vịnh Hạ Long', image: 'https://res.cloudinary.com/dsjdn1ajs/image/upload/v1765628142/v%E1%BB%8Bnh_h%E1%BA%A1_long_k9f3td.jpg' },
+    { name: 'Nha Trang', image: 'https://res.cloudinary.com/dsjdn1ajs/image/upload/v1765628130/nha_trang_akczbi.jpg' },
+    { name: 'Phú Quốc', image: 'https://res.cloudinary.com/dsjdn1ajs/image/upload/v1765628132/Ph%C3%BA_qu%E1%BB%91c_urfqky.jpg' },
+    { name: 'Quy Nhơn', image: 'https://res.cloudinary.com/dsjdn1ajs/image/upload/v1765628138/Quy_nh%C6%A1n_rfbwxl.jpg' },
   ];
 
   // Tạo suggestions từ cities và hotels
   useEffect(() => {
     const searchTerm = searchData.search?.toLowerCase().trim() || '';
+    const searchTermNoTones = removeVietnameseTones(searchTerm);
 
     // Nếu không có search term, hiển thị popular destinations
     if (!searchTerm || searchTerm.length < 2) {
@@ -162,10 +164,12 @@ const HeroSearchBar = () => {
 
     const results = [];
 
-    // 1. Tìm cities phù hợp
-    const matchedCities = CITIES.filter(city => 
-      city.toLowerCase().includes(searchTerm)
-    ).map(city => {
+    // 1. Tìm cities phù hợp (hỗ trợ tìm không dấu)
+    const matchedCities = CITIES.filter(city => {
+      const cityLower = city.toLowerCase();
+      const cityNoTones = removeVietnameseTones(city);
+      return cityLower.includes(searchTerm) || cityNoTones.includes(searchTermNoTones);
+    }).map(city => {
       const popular = popularDestinations.find(d => d.name === city);
       return {
         type: 'city',
@@ -178,31 +182,9 @@ const HeroSearchBar = () => {
 
     results.push(...matchedCities);
 
-    // 2. Tìm hotels phù hợp
-    if (hotelsData?.data?.hotels || hotelsData?.data) {
-      const hotels = hotelsData.data.hotels || hotelsData.data;
-      const matchedHotels = hotels
-        .filter(hotel => 
-          hotel.name?.toLowerCase().includes(searchTerm) ||
-          hotel.city?.toLowerCase().includes(searchTerm) ||
-          hotel.address?.toLowerCase().includes(searchTerm)
-        )
-        .slice(0, 5)
-        .map(hotel => ({
-          type: 'hotel',
-          label: hotel.name,
-          value: hotel.name,
-          city: hotel.city,
-          address: hotel.address,
-          image: hotel.images?.[0] || hotel.thumbnail || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&h=150&fit=crop',
-        }));
-
-      results.push(...matchedHotels);
-    }
-
     setSuggestions(results);
     setShowSuggestions(results.length > 0);
-  }, [searchData.search, hotelsData, allHotelsData]);
+  }, [searchData.search, allHotelsData]);
 
   // Xử lý click trên map để chọn vị trí
   const handleMapClick = (e) => {
