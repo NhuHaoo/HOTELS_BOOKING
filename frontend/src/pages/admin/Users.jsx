@@ -224,27 +224,27 @@ const Users = () => {
 
                   <td className="px-2 py-3">
                     <div className="flex justify-center gap-2">
-                      {u.role !== 'manager' && (
-                        <button
-                          onClick={() => handleToggleRole(u)}
+                    {u.role !== 'manager' && (
+                      <button
+                        onClick={() => handleToggleRole(u)}
                           className={`p-1.5 rounded transition-colors ${
-                            u.role === 'admin'
+                          u.role === 'admin'
                               ? 'text-yellow-600 hover:bg-yellow-50'
                               : 'text-green-600 hover:bg-green-50'
-                          }`}
+                        }`}
                           title={u.role === 'admin' ? 'Hủy admin' : 'Thăng admin'}
-                        >
+                      >
                           {u.role === 'admin' ? <FaBan size={14} /> : <FaCheck size={14} />}
-                        </button>
-                      )}
+                      </button>
+                    )}
 
-                      <button
-                        onClick={() => handleDeleteUser(u._id)}
+                    <button
+                      onClick={() => handleDeleteUser(u._id)}
                         className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
                         title="Xóa"
-                      >
+                    >
                         <FaBan size={14} />
-                      </button>
+                    </button>
                     </div>
                   </td>
                 </tr>

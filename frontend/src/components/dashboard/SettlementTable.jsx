@@ -21,18 +21,18 @@ const SettlementTable = ({ settlements = [] }) => {
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm table-auto">
+      <table className="w-full text-xs table-auto">
         <thead className="bg-gray-50">
           <tr className="border-b border-gray-200">
-            <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase">Mã settlement</th>
-            <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase">Khách sạn</th>
-            <th className="text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase">Kỳ đối soát</th>
-            <th className="text-right py-3 px-4 font-semibold text-gray-700 text-xs uppercase">Tổng booking</th>
-            <th className="text-right py-3 px-4 font-semibold text-gray-700 text-xs uppercase">Tổng doanh thu</th>
-            <th className="text-right py-3 px-4 font-semibold text-gray-700 text-xs uppercase">Tổng hoa hồng</th>
-            <th className="text-right py-3 px-4 font-semibold text-gray-700 text-xs uppercase">Số tiền chi trả</th>
-            <th className="text-center py-3 px-4 font-semibold text-gray-700 text-xs uppercase">Trạng thái</th>
-            <th className="text-center py-3 px-4 font-semibold text-gray-700 text-xs uppercase">Thao tác</th>
+            <th className="text-left py-2 px-2 font-semibold text-gray-700 text-[10px] uppercase">Mã settlement</th>
+            <th className="text-left py-2 px-2 font-semibold text-gray-700 text-[10px] uppercase">Khách sạn</th>
+            <th className="text-left py-2 px-2 font-semibold text-gray-700 text-[10px] uppercase">Kỳ đối soát</th>
+            <th className="text-right py-2 px-2 font-semibold text-gray-700 text-[10px] uppercase">Tổng booking</th>
+            <th className="text-right py-2 px-2 font-semibold text-gray-700 text-[10px] uppercase">Tổng doanh thu</th>
+            <th className="text-right py-2 px-2 font-semibold text-gray-700 text-[10px] uppercase">Tổng hoa hồng</th>
+            <th className="text-right py-2 px-2 font-semibold text-gray-700 text-[10px] uppercase">Số tiền chi trả</th>
+            <th className="text-center py-2 px-2 font-semibold text-gray-700 text-[10px] uppercase">Trạng thái</th>
+            <th className="text-center py-2 px-2 font-semibold text-gray-700 text-[10px] uppercase">Thao tác</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
@@ -42,50 +42,50 @@ const SettlementTable = ({ settlements = [] }) => {
 
             return (
               <tr key={settlement._id} className="hover:bg-gray-50 transition-colors">
-                <td className="py-3 px-4">
-                  <span className="font-mono text-xs text-primary font-semibold">
+                <td className="py-2 px-2">
+                  <span className="font-mono text-[10px] text-primary font-semibold">
                     {settlement._id.toString().slice(-8).toUpperCase()}
                   </span>
                 </td>
-                <td className="py-3 px-4">
-                  <div className="flex items-center gap-2">
-                    <FaHotel className="text-gray-400" size={14} />
-                    <span className="text-gray-700">{settlement.hotelId?.name || 'N/A'}</span>
+                <td className="py-2 px-2">
+                  <div className="flex items-center gap-1.5">
+                    <FaHotel className="text-gray-400" size={12} />
+                    <span className="text-gray-700 text-[11px]">{settlement.hotelId?.name || 'N/A'}</span>
                   </div>
                 </td>
-                <td className="py-3 px-4">
-                  <div className="text-sm text-gray-600">
+                <td className="py-2 px-2">
+                  <div className="text-[11px] text-gray-600">
                     {formatDate(settlement.period?.startDate)} - {formatDate(settlement.period?.endDate)}
                   </div>
                 </td>
-                <td className="py-3 px-4 text-right">
-                  <span className="font-medium text-gray-900">{settlement.bookings?.length || 0}</span>
+                <td className="py-2 px-2 text-right">
+                  <span className="font-medium text-gray-900 text-[11px]">{settlement.bookings?.length || 0}</span>
                 </td>
-                <td className="py-3 px-4 text-right">
-                  <span className="font-medium text-gray-900">{formatPrice(totalRevenue)}</span>
+                <td className="py-2 px-2 text-right">
+                  <span className="font-medium text-gray-900 text-[11px]">{formatPrice(totalRevenue)}</span>
                 </td>
-                <td className="py-3 px-4 text-right">
-                  <span className="font-semibold text-emerald-600">
+                <td className="py-2 px-2 text-right">
+                  <span className="font-semibold text-emerald-600 text-[11px]">
                     {formatPrice(settlement.commissionAmount || 0)}
                   </span>
                 </td>
-                <td className="py-3 px-4 text-right">
-                  <span className="font-semibold text-blue-600">
+                <td className="py-2 px-2 text-right">
+                  <span className="font-semibold text-blue-600 text-[11px]">
                     {formatPrice(settlement.totalAmount || 0)}
                   </span>
                 </td>
-                <td className="py-3 px-4 text-center">
-                  <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${status.color}`}>
+                <td className="py-2 px-2 text-center">
+                  <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-medium ${status.color}`}>
                     {status.label}
                   </span>
                 </td>
-                <td className="py-3 px-4 text-center">
+                <td className="py-2 px-2 text-center">
                   <Link
                     to={`/admin/settlements/${settlement._id}`}
-                    className="inline-flex items-center justify-center w-8 h-8 rounded-md text-gray-600 hover:bg-gray-100 hover:text-primary transition-colors"
+                    className="inline-flex items-center justify-center w-7 h-7 rounded-md text-gray-600 hover:bg-gray-100 hover:text-primary transition-colors"
                     title="Xem chi tiết"
                   >
-                    <FaEye size={14} />
+                    <FaEye size={12} />
                   </Link>
                 </td>
               </tr>

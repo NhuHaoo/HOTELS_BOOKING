@@ -378,20 +378,20 @@ const Rooms = () => {
                     </td>
                     <td className="px-2 py-3 text-right">
                       <div className="flex justify-end space-x-1">
-                        <button
-                          onClick={() => openEditModal(room)}
+                      <button
+                        onClick={() => openEditModal(room)}
                           className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                           title="Sửa"
-                        >
+                      >
                           <FaEdit size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(room._id)}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(room._id)}
                           className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
                           title="Xóa"
-                        >
+                      >
                           <FaTrash size={14} />
-                        </button>
+                      </button>
                       </div>
                     </td>
                   </tr>

@@ -117,6 +117,11 @@ const SearchResult = () => {
     refetch();
   }, [filters, refetch]);
 
+  // Scroll to top khi component mount hoặc searchParams thay đổi
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [searchParams]);
+
   const handleFilterChange = (key, value) => {
     setFilters((prev) => {
       const updated = {
@@ -747,7 +752,7 @@ const SearchResult = () => {
                     const { hotel, minPrice, roomsCount, sampleRoom } = item;
                     const img =
                       hotel.images?.[0] ||
-                      sampleRoom.images?.[0] ||
+                      hotel.thumbnail ||
                       'https://via.placeholder.com/400x250?text=Hotel';
 
                     return (

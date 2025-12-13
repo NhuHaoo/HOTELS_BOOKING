@@ -10,13 +10,14 @@ import {
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
-import { ROOM_TYPES } from '../utils/constants';
+import { ROOM_TYPES, CITIES } from '../utils/constants';
 import { getToday, getTomorrow } from '../utils/dateUtils';
 import useSearchStore from '../store/useSearchStore';
 import toast from 'react-hot-toast';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import MapView from './MapView';
 import HeroPromoBar from '../components/HeroPromoBar';
+import { hotelAPI } from '../api/hotel.api';
+import { useQuery } from '@tanstack/react-query';
 
 const HeroSearchBar = () => {
   const navigate = useNavigate();
@@ -28,12 +29,15 @@ const HeroSearchBar = () => {
 
   // Map state
   const [showMap, setShowMap] = useState(false);
-  const mapRef = useRef(null);
-  const markerRef = useRef(null);
 
   // Popup chọn khách & phòng
   const [showGuestBox, setShowGuestBox] = useState(false);
   const guestBoxRef = useRef(null);
+
+  // Autocomplete suggestions
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const searchInputRef = useRef(null);
 
   const [searchData, setSearchData] = useState({
     search: '',
@@ -50,6 +54,12 @@ const HeroSearchBar = () => {
     longitude: '',
   });
 
+  // Map center state - phải khai báo sau searchData
+  const [mapCenter, setMapCenter] = useState({
+    latitude: 10.776889, // HCM mặc định
+    longitude: 106.700981,
+  });
+
   // Helper: format ngày thành YYYY-MM-DD (để SearchResult + backend dễ xử lý)
   const formatDateParam = (date) => {
     if (!date) return '';
@@ -62,15 +72,18 @@ const HeroSearchBar = () => {
     if (useLocation && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
           setUserLocation({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
+            latitude: lat,
+            longitude: lng,
           });
           setSearchData((prev) => ({
             ...prev,
-            latitude: position.coords.latitude.toString(),
-            longitude: position.coords.longitude.toString(),
+            latitude: lat.toString(),
+            longitude: lng.toString(),
           }));
+          setMapCenter({ latitude: lat, longitude: lng });
         },
         (error) => {
           console.error(error);
@@ -80,37 +93,121 @@ const HeroSearchBar = () => {
     }
   }, [useLocation]);
 
-  // Khởi tạo bản đồ chọn vị trí tìm kiếm
+  // Cập nhật map center khi searchData thay đổi
   useEffect(() => {
-    if (!showMap) return;
+    if (searchData.latitude && searchData.longitude) {
+      setMapCenter({
+        latitude: Number(searchData.latitude),
+        longitude: Number(searchData.longitude),
+      });
+    }
+  }, [searchData.latitude, searchData.longitude]);
 
-    // Nếu map đã tồn tại (toggle ẩn/hiện) thì chỉ cần invalidateSize
-    if (mapRef.current) {
-      mapRef.current.invalidateSize();
+  // Lấy danh sách hotels để đếm số lượng theo city
+  const { data: allHotelsData } = useQuery({
+    queryKey: ['all-hotels-for-count'],
+    queryFn: () => hotelAPI.getHotels({ limit: 1000, page: 1 }),
+    staleTime: 5 * 60 * 1000, // Cache 5 phút
+  });
+
+  // Search hotels cho autocomplete
+  const { data: hotelsData } = useQuery({
+    queryKey: ['hotels-autocomplete', searchData.search],
+    queryFn: () => hotelAPI.getHotels({ 
+      search: searchData.search, 
+      limit: 5,
+      page: 1 
+    }),
+    enabled: searchData.search.length >= 2, // Chỉ search khi có ít nhất 2 ký tự
+    staleTime: 30000, // Cache 30 giây
+  });
+
+  // Đếm số lượng hotels theo city
+  const getHotelCountByCity = (cityName) => {
+    if (!allHotelsData?.data?.hotels && !allHotelsData?.data) return 0;
+    const hotels = allHotelsData.data.hotels || allHotelsData.data;
+    return hotels.filter(h => h.city === cityName).length;
+  };
+
+  // Popular destinations với thumbnail
+  const popularDestinations = [
+    { name: 'Đà Lạt', image: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=150&h=30&fit=crop' },
+    { name: 'Phú Yên', image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=150&h=30&fit=crop' },
+    { name: 'Đà Nẵng', image: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=150&h=30&fit=crop' },
+    { name: 'Hà Nội', image: 'https://images.unsplash.com/photo-1528181304800-259b08848526?w=150&h=30&fit=crop' },
+    { name: 'Hội An', image: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=150&h=30&fit=crop' },
+    { name: 'Hải Phòng', image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=150&h=30&fit=crop' },
+    { name: 'Nha Trang', image: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=150&h=30&fit=crop' },
+    { name: 'Phú Quốc', image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=150&h=30&fit=crop' },
+    { name: 'Hồ Chí Minh', image: 'https://images.unsplash.com/photo-1583417319070-4a69b38b8fed?w=150&h=30&fit=crop' },
+  ];
+
+  // Tạo suggestions từ cities và hotels
+  useEffect(() => {
+    const searchTerm = searchData.search?.toLowerCase().trim() || '';
+
+    // Nếu không có search term, hiển thị popular destinations
+    if (!searchTerm || searchTerm.length < 2) {
+      const popular = popularDestinations.map(dest => ({
+        type: 'city',
+        label: dest.name,
+        value: dest.name,
+        image: dest.image,
+        hotelCount: getHotelCountByCity(dest.name),
+      }));
+      setSuggestions(popular);
+      // Chỉ hiển thị khi user focus vào input
       return;
     }
 
-    const defaultLat = searchData.latitude
-      ? Number(searchData.latitude)
-      : 10.776889; // ví dụ HCM
-    const defaultLng = searchData.longitude
-      ? Number(searchData.longitude)
-      : 106.700981;
+    const results = [];
 
-    const map = L.map('search-map').setView([defaultLat, defaultLng], 13);
-    mapRef.current = map;
+    // 1. Tìm cities phù hợp
+    const matchedCities = CITIES.filter(city => 
+      city.toLowerCase().includes(searchTerm)
+    ).map(city => {
+      const popular = popularDestinations.find(d => d.name === city);
+      return {
+        type: 'city',
+        label: city,
+        value: city,
+        image: popular?.image || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&h=150&fit=crop',
+        hotelCount: getHotelCountByCity(city),
+      };
+    });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 18,
-    }).addTo(map);
+    results.push(...matchedCities);
 
-    // Marker ban đầu
-    markerRef.current = L.marker([defaultLat, defaultLng]).addTo(map);
+    // 2. Tìm hotels phù hợp
+    if (hotelsData?.data?.hotels || hotelsData?.data) {
+      const hotels = hotelsData.data.hotels || hotelsData.data;
+      const matchedHotels = hotels
+        .filter(hotel => 
+          hotel.name?.toLowerCase().includes(searchTerm) ||
+          hotel.city?.toLowerCase().includes(searchTerm) ||
+          hotel.address?.toLowerCase().includes(searchTerm)
+        )
+        .slice(0, 5)
+        .map(hotel => ({
+          type: 'hotel',
+          label: hotel.name,
+          value: hotel.name,
+          city: hotel.city,
+          address: hotel.address,
+          image: hotel.images?.[0] || hotel.thumbnail || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&h=150&fit=crop',
+        }));
 
-    // Click trên map để chọn vị trí
-    map.on('click', (e) => {
-      const lat = e.latlng.lat;
-      const lng = e.latlng.lng;
+      results.push(...matchedHotels);
+    }
+
+    setSuggestions(results);
+    setShowSuggestions(results.length > 0);
+  }, [searchData.search, hotelsData, allHotelsData]);
+
+  // Xử lý click trên map để chọn vị trí
+  const handleMapClick = (e) => {
+    const lat = e.lngLat.lat;
+    const lng = e.lngLat.lng;
 
       setSearchData((prev) => ({
         ...prev,
@@ -120,21 +217,17 @@ const HeroSearchBar = () => {
 
       // Bật luôn "tìm theo bán kính" để khi submit gửi lat/lng
       setUseLocation(true);
-
-      if (markerRef.current) {
-        markerRef.current.setLatLng([lat, lng]);
-      } else {
-        markerRef.current = L.marker([lat, lng]).addTo(mapRef.current);
-      }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showMap]);
+    setMapCenter({ latitude: lat, longitude: lng });
+  };
 
   // Đóng popup khách/phòng khi click ra ngoài
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (guestBoxRef.current && !guestBoxRef.current.contains(e.target)) {
         setShowGuestBox(false);
+      }
+      if (searchInputRef.current && !searchInputRef.current.contains(e.target)) {
+        setShowSuggestions(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -241,17 +334,124 @@ const HeroSearchBar = () => {
               </span>
             </label>
 
-            <div className="relative">
-              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
+            <div className="relative" ref={searchInputRef}>
+              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm z-10" />
               <input
                 type="text"
                 value={searchData.search}
-                onChange={(e) =>
-                  setSearchData({ ...searchData, search: e.target.value })
-                }
+                onChange={(e) => {
+                  setSearchData({ ...searchData, search: e.target.value });
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => {
+                  // Hiển thị popular destinations khi focus vào input rỗng
+                  if (!searchData.search || searchData.search.length < 2) {
+                    const popular = popularDestinations.map(dest => ({
+                      type: 'city',
+                      label: dest.name,
+                      value: dest.name,
+                      image: dest.image,
+                      hotelCount: getHotelCountByCity(dest.name),
+                    }));
+                    setSuggestions(popular);
+                  }
+                  setShowSuggestions(true);
+                }}
                 placeholder="Nhập thành phố, tên khách sạn hoặc địa điểm..."
                 className="w-full pl-10 pr-3 py-2 h-12 md:h-13 rounded-2xl border border-slate-200 focus:border-orange-400 focus:ring-2 focus:ring-orange-300/60 text-sm md:text-base"
               />
+
+              {/* Dropdown Suggestions */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute z-50 w-full mt-2 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden">
+                  {/* Header */}
+                  <div className="px-4 py-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-slate-200">
+                    <h3 className="font-bold text-slate-900 text-sm">
+                      {searchData.search && searchData.search.length >= 2 
+                        ? 'Kết quả tìm kiếm' 
+                        : 'Địa điểm đang hot nhất'}
+                    </h3>
+                  </div>
+
+                  {/* Content */}
+                  <div className="max-h-96 overflow-y-auto">
+                    {searchData.search && searchData.search.length >= 2 ? (
+                      // List view cho search results
+                      <div className="py-2">
+                        {suggestions.map((suggestion, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() => {
+                              setSearchData((prev) => ({
+                                ...prev,
+                                search: suggestion.value,
+                              }));
+                              setShowSuggestions(false);
+                            }}
+                            className="w-full text-left px-4 py-3 hover:bg-orange-50 transition-colors flex items-center gap-3 group"
+                          >
+                            <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
+                              <img
+                                src={suggestion.image || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&h=150&fit=crop'}
+                                alt={suggestion.label}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-slate-900 group-hover:text-orange-600">
+                                {suggestion.label}
+                              </div>
+                                {suggestion.city && (
+                                  <div className="text-xs text-slate-500 mt-0.5">
+                                    {suggestion.city}
+                                    {suggestion.address && ` • ${suggestion.address}`}
+                                  </div>
+                                )}
+                            </div>
+                            <FaMapMarkerAlt className="text-slate-400 group-hover:text-orange-500 text-sm flex-shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                      ) : (
+                        // Grid view cho popular destinations - Layout ngang: ảnh trái, tên phải
+                        <div className="p-3">
+                          <div className="grid grid-cols-3 gap-2">
+                            {suggestions.slice(0, 9).map((suggestion, index) => (
+                              <button
+                                key={index}
+                                type="button"
+                                onClick={() => {
+                                  setSearchData((prev) => ({
+                                    ...prev,
+                                    search: suggestion.value,
+                                  }));
+                                  setShowSuggestions(false);
+                                }}
+                                className="group relative overflow-hidden rounded-lg border border-slate-200 hover:border-orange-400 hover:shadow-md transition-all duration-200 bg-white flex items-center gap-2 p-2"
+                              >
+                                {/* Thumbnail - Bên trái */}
+                                <div className="w-12 h-12 flex-shrink-0 overflow-hidden rounded bg-slate-100">
+                                  <img
+                                    src={suggestion.image || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=150&h=30&fit=crop'}
+                                    alt={suggestion.label}
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                  />
+                                </div>
+                                {/* Info - Bên phải */}
+                                <div className="flex-1 min-w-0 text-left">
+                                  <div className="font-semibold text-xs text-slate-900 group-hover:text-orange-600 line-clamp-1">
+                                    {suggestion.label}
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Nút bật bản đồ + tọa độ */}
@@ -280,7 +480,13 @@ const HeroSearchBar = () => {
             {/* Bản đồ */}
             {showMap && (
               <div className="mt-3 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-                <div id="search-map" className="w-full h-64" />
+                <MapView
+                  latitude={mapCenter.latitude}
+                  longitude={mapCenter.longitude}
+                  zoom={13}
+                  height="256px"
+                  onMapClick={handleMapClick}
+                />
               </div>
             )}
           </div>

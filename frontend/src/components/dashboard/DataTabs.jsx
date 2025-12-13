@@ -13,14 +13,14 @@ const DataTabs = ({ bookings = [], settlements = [] }) => {
         <div className="flex">
           <button
             onClick={() => setActiveTab('bookings')}
-            className={`flex-1 px-6 py-4 text-sm font-semibold transition-all duration-200 ${
+            className={`flex-1 px-6 py-4 text-base font-semibold transition-all duration-200 ${
               activeTab === 'bookings'
                 ? 'text-primary border-b-2 border-primary bg-primary/5'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             <div className="flex items-center justify-center gap-2">
-              <FaClipboardList size={16} />
+              <FaClipboardList size={18} />
               <span>Đặt phòng gần đây</span>
               {bookings.length > 0 && (
                 <span className="bg-primary text-white text-xs px-2 py-0.5 rounded-full font-medium">
@@ -31,14 +31,14 @@ const DataTabs = ({ bookings = [], settlements = [] }) => {
           </button>
           <button
             onClick={() => setActiveTab('settlements')}
-            className={`flex-1 px-6 py-4 text-sm font-semibold transition-all duration-200 ${
+            className={`flex-1 px-6 py-4 text-base font-semibold transition-all duration-200 ${
               activeTab === 'settlements'
                 ? 'text-primary border-b-2 border-primary bg-primary/5'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             <div className="flex items-center justify-center gap-2">
-              <FaMoneyBillWave size={16} />
+              <FaMoneyBillWave size={18} />
               <span>Đối soát thanh toán</span>
               {settlements.length > 0 && (
                 <span className="bg-primary text-white text-xs px-2 py-0.5 rounded-full font-medium">
@@ -51,7 +51,7 @@ const DataTabs = ({ bookings = [], settlements = [] }) => {
       </div>
 
       {/* Tabs Content */}
-      <div className="p-4">
+      <div className="p-6">
         {activeTab === 'bookings' ? (
           <RecentBookingsTable bookings={bookings} />
         ) : (

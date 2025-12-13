@@ -14,6 +14,9 @@ const MapView = ({
 
   // ✅ hoặc truyền danh sách khách sạn để vẽ nhiều marker
   hotels = [], // [{ _id, name, address, city, location: { coordinates: [lng, lat] } }]
+  
+  // ✅ Callback khi click trên map (cho HeroSearchBar)
+  onMapClick, // (e) => { e.lngLat.lat, e.lngLat.lng }
 }) => {
   // kiểm tra có danh sách khách sạn có tọa độ không
   const hotelMarkers = Array.isArray(hotels)
@@ -111,6 +114,7 @@ const MapView = ({
         {...viewState}
         onMove={(evt) => setViewState(evt.viewState)}
         onLoad={() => setIsLoaded(true)}
+        onClick={onMapClick}
         mapStyle="mapbox://styles/mapbox/streets-v12"
         mapboxAccessToken={MAPBOX_TOKEN}
         style={{ width: '100%', height: '100%' }}

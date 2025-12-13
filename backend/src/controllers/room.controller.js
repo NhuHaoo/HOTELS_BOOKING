@@ -319,7 +319,7 @@ exports.getRooms = async (req, res) => {
     let rooms = await Room.find(query)
       .populate(
         'hotelId',
-        'name address city rating location description introduction hotelType starRating cancellationPolicy reschedulePolicy'
+        'name address city rating location description introduction hotelType starRating cancellationPolicy reschedulePolicy images thumbnail'
       )
       .sort(sort)
       .limit(limitNum)
@@ -400,7 +400,7 @@ exports.getRoom = async (req, res) => {
 
     const room = await Room.findById(req.params.id).populate(
       'hotelId',
-      'name address city rating location description introduction hotelType starRating amenities phone email checkInTime checkOutTime cancellationPolicy reschedulePolicy'
+      'name address city rating location description introduction hotelType starRating amenities phone email checkInTime checkOutTime cancellationPolicy reschedulePolicy images thumbnail'
     );
 
     if (!room) {
@@ -482,7 +482,7 @@ exports.getRoomsByHotel = async (req, res) => {
     }
 
     const rooms = await Room.find(query)
-      .populate('hotelId', 'name city rating')
+      .populate('hotelId', 'name city rating images thumbnail')
       .limit(parseInt(limit))
       .sort('-rating');
 
@@ -600,7 +600,7 @@ exports.searchRooms = async (req, res) => {
         { description: new RegExp(keyword, 'i') }
       ]
     })
-      .populate('hotelId', 'name address city rating')
+      .populate('hotelId', 'name address city rating images thumbnail')
       .limit(20);
 
     res.status(200).json({
@@ -653,7 +653,7 @@ exports.getAvailableRooms = async (req, res) => {
 
     const rooms = await Room.find(query).populate(
       'hotelId',
-      'name address city rating location'
+      'name address city rating location images thumbnail'
     );
 
     res.status(200).json({

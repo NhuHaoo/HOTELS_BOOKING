@@ -1,6 +1,6 @@
 // frontend/src/pages/HotelRooms.jsx
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { hotelAPI } from "../api/hotel.api";
@@ -16,6 +16,8 @@ import {
   FaEnvelope,
   FaClock,
   FaCheckCircle,
+  FaChevronLeft,
+  FaChevronRight,
 } from "react-icons/fa";
 
 const HotelRooms = () => {
@@ -25,6 +27,7 @@ const HotelRooms = () => {
   const searchFilters = location.state?.searchFilters || null;
 
   const [selectedImage, setSelectedImage] = useState(0);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true); // Bật auto-play mặc định
 
   // Hotel
   const {
@@ -77,6 +80,17 @@ const HotelRooms = () => {
     hotelImages[selectedImage] ||
     hotel?.thumbnail ||
     "https://via.placeholder.com/800x450?text=Hotel";
+
+  // Auto-play images với pause khi hover
+  useEffect(() => {
+    if (!isAutoPlaying || hotelImages.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setSelectedImage((prev) => (prev + 1) % hotelImages.length);
+    }, 3000); // Chuyển mỗi 3 giây
+
+    return () => clearInterval(interval);
+  }, [isAutoPlaying, hotelImages.length]);
 
   // 🔥 TIỆN NGHI KHÁCH SẠN:
   // 1) Nếu hotel.amenities là mảng và có phần tử → dùng
@@ -134,14 +148,84 @@ const HotelRooms = () => {
       <div className="container-custom py-8 space-y-6">
         {/* ========== GALLERY ẢNH KHÁCH SẠN ========== */}
         <div className="grid grid-cols-4 gap-2">
-          <div className="col-span-4 md:col-span-3 h-80 md:h-96 rounded-xl overflow-hidden">
-            <img
-              src={mainImage}
-              alt={hotel?.name || "Hotel"}
+          {/* Main Image với Navigation và Slide Animation */}
+          <div 
+            className="col-span-4 md:col-span-3 h-80 md:h-96 rounded-xl overflow-hidden relative group"
+            onMouseEnter={() => setIsAutoPlaying(false)}
+            onMouseLeave={() => setIsAutoPlaying(true)}
+          >
+            {/* Image Container với Slide Animation */}
+            <div 
+              className="flex h-full transition-transform duration-500 ease-in-out"
+              style={{
+                transform: `translateX(-${selectedImage * 100}%)`,
+                width: `${hotelImages.length * 100}%`
+              }}
+            >
+              {hotelImages.map((img, index) => (
+                <div
+                  key={index}
+                  className="h-full flex-shrink-0"
+                  style={{ width: `calc(100% / ${hotelImages.length})` }}
+                >
+                  <img
+                    src={img || hotel?.thumbnail || "https://via.placeholder.com/800x450?text=Hotel"}
+                    alt={`${hotel?.name || "Hotel"} - Ảnh ${index + 1}`}
               className="w-full h-full object-cover"
             />
+                </div>
+              ))}
+            </div>
+            
+            {/* Navigation Arrows */}
+            {hotelImages.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedImage(
+                      (prev) => (prev - 1 + hotelImages.length) % hotelImages.length
+                    )
+                  }
+                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white backdrop-blur-sm p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 hover:scale-110"
+                  aria-label="Ảnh trước"
+                >
+                  <FaChevronLeft className="text-gray-800 text-lg" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedImage((prev) => (prev + 1) % hotelImages.length)
+                  }
+                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white backdrop-blur-sm p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 hover:scale-110"
+                  aria-label="Ảnh sau"
+                >
+                  <FaChevronRight className="text-gray-800 text-lg" />
+                </button>
+              </>
+            )}
+
+            {/* Dots Indicators - Luôn hiển thị */}
+            {hotelImages.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/50 backdrop-blur-md px-4 py-2 rounded-full z-10">
+                {hotelImages.map((_, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => setSelectedImage(index)}
+                    className={`transition-all duration-300 ${
+                      selectedImage === index
+                        ? "w-3 h-3 bg-white rounded-full scale-125 shadow-lg"
+                        : "w-2.5 h-2.5 bg-white/70 rounded-full hover:bg-white hover:scale-110"
+                    }`}
+                    aria-label={`Xem ảnh ${index + 1}`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
+          {/* Thumbnail Gallery */}
           <div className="col-span-4 md:col-span-1 grid grid-cols-4 md:grid-cols-1 gap-2">
             {(hotelImages.length ? hotelImages : [mainImage])
               .slice(0, 4)
@@ -150,16 +234,16 @@ const HotelRooms = () => {
                   type="button"
                   key={index}
                   onClick={() => setSelectedImage(index)}
-                  className={`h-20 md:h-24 rounded-lg overflow-hidden cursor-pointer border ${
+                  className={`h-20 md:h-24 rounded-lg overflow-hidden cursor-pointer border transition-all duration-200 ${
                     selectedImage === index
-                      ? "border-primary ring-2 ring-primary"
-                      : "border-transparent"
+                      ? "border-primary ring-2 ring-primary scale-105"
+                      : "border-transparent hover:border-gray-300"
                   }`}
                 >
                   <img
                     src={img}
                     alt={`Hotel ${index + 1}`}
-                    className="w-full h-full object-cover hover:scale-110 transition-transform"
+                    className="w-full h-full object-cover hover:scale-110 transition-transform duration-200"
                   />
                 </button>
               ))}

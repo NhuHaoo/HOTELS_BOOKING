@@ -367,14 +367,14 @@ const Bookings = () => {
                         </span>
                         <div>
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
-                            booking.paymentStatus === 'paid' 
-                              ? 'bg-green-100 text-green-800' 
-                              : booking.paymentStatus === 'cancelled'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {booking.paymentStatus === 'paid' ? '✓' : '⏳'} {PAYMENT_STATUS[booking.paymentStatus]?.label}
-                          </span>
+                          booking.paymentStatus === 'paid' 
+                            ? 'bg-green-100 text-green-800' 
+                            : booking.paymentStatus === 'cancelled'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {booking.paymentStatus === 'paid' ? '✓' : '⏳'} {PAYMENT_STATUS[booking.paymentStatus]?.label}
+                        </span>
                         </div>
                       </div>
                     </td>

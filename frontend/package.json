@@ -15,7 +15,6 @@
     "canvas-confetti": "^1.9.4",
     "date-fns": "^2.30.0",
     "framer-motion": "^10.16.16",
-    "leaflet": "^1.9.4",
     "lucide-react": "^0.555.0",
     "mapbox-gl": "^3.16.0",
     "react": "^18.2.0",

@@ -41,6 +41,7 @@ const RoomDetail = () => {
   const { setSelectedRoom } = useBookingStore();
   const [selectedImage, setSelectedImage] = useState(0);
   const [isFavorited, setIsFavorited] = useState(false);
+  const [isAutoSliding, setIsAutoSliding] = useState(true);
 
   const { data: roomData, isLoading } = useQuery({
     queryKey: ['room', id],
@@ -135,6 +136,21 @@ const RoomDetail = () => {
     }
   }, [favoriteData]);
 
+  // Auto-slide images every 3 seconds
+  useEffect(() => {
+    if (!room?.images || room.images.length <= 1 || !isAutoSliding) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setSelectedImage((prev) => {
+        return (prev + 1) % room.images.length;
+      });
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [room?.images, isAutoSliding]);
+
   const handleBookNow = () => {
     if (!isAuthenticated) {
       toast.error('Vui lòng đăng nhập để đặt phòng');
@@ -214,19 +230,28 @@ const RoomDetail = () => {
 
         {/* Image Gallery */}
         <div className="grid grid-cols-4 gap-2 mb-8">
-          <div className="col-span-4 md:col-span-3 h-96 rounded-xl overflow-hidden">
+          <div 
+            className="col-span-4 md:col-span-3 h-96 rounded-xl overflow-hidden relative"
+            onMouseEnter={() => setIsAutoSliding(false)}
+            onMouseLeave={() => setIsAutoSliding(true)}
+          >
             <img
               src={room.images?.[selectedImage] || '/placeholder-room.jpg'}
               alt={room.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-opacity duration-500"
             />
           </div>
           <div className="col-span-4 md:col-span-1 grid grid-cols-4 md:grid-cols-1 gap-2">
             {room.images?.slice(0, 4).map((image, index) => (
               <div
                 key={index}
-                onClick={() => setSelectedImage(index)}
-                className={`h-24 rounded-lg overflow-hidden cursor-pointer ${
+                onClick={() => {
+                  setSelectedImage(index);
+                  setIsAutoSliding(false);
+                  // Resume auto-sliding after 5 seconds of manual selection
+                  setTimeout(() => setIsAutoSliding(true), 5000);
+                }}
+                className={`h-24 rounded-lg overflow-hidden cursor-pointer transition-all ${
                   selectedImage === index ? 'ring-2 ring-primary' : ''
                 }`}
               >

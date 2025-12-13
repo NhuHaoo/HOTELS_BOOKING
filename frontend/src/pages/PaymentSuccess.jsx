@@ -389,25 +389,25 @@ const PaymentSuccess = () => {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  <div className="flex justify-between text-gray-700">
-                    <span>Giá phòng/đêm:</span>
-                    <span className="font-semibold">{formatPrice(booking.roomId?.price || 0)}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-700">
-                    <span>Số đêm:</span>
-                    <span className="font-semibold">{nights} đêm</span>
-                  </div>
-                  <div className="h-px bg-gray-300"></div>
-                  <div className="flex justify-between text-lg">
-                    <span className="font-bold text-gray-800">Tổng cộng:</span>
-                    <span className="font-bold text-2xl text-gradient">{formatPrice(booking.totalPrice || booking.totalAmount || 0)}</span>
-                  </div>
-                  <div className="flex items-center justify-center space-x-2 pt-3">
-                    <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
-                    <span className="font-semibold text-green-700">Đã thanh toán</span>
-                  </div>
+              <div className="space-y-3">
+                <div className="flex justify-between text-gray-700">
+                  <span>Giá phòng/đêm:</span>
+                  <span className="font-semibold">{formatPrice(booking.roomId?.price || 0)}</span>
                 </div>
+                <div className="flex justify-between text-gray-700">
+                  <span>Số đêm:</span>
+                  <span className="font-semibold">{nights} đêm</span>
+                </div>
+                <div className="h-px bg-gray-300"></div>
+                <div className="flex justify-between text-lg">
+                  <span className="font-bold text-gray-800">Tổng cộng:</span>
+                    <span className="font-bold text-2xl text-gradient">{formatPrice(booking.totalPrice || booking.totalAmount || 0)}</span>
+                </div>
+                <div className="flex items-center justify-center space-x-2 pt-3">
+                  <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+                  <span className="font-semibold text-green-700">Đã thanh toán</span>
+                </div>
+              </div>
               )}
             </div>
           </div>
