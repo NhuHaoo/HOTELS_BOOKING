@@ -9,6 +9,7 @@
     "seed:import": "node src/utils/seeder.js -i",
     "seed:delete": "node src/utils/seeder.js -d",
     "seed:sync": "node src/utils/seeder.js -s",
+    "migrate:keywords": "node src/utils/migrate-search-keywords.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

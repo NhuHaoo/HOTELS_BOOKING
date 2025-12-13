@@ -142,6 +142,11 @@ const hotelSchema = new mongoose.Schema({
     min: 0,
     max: 100
   },
+  // 🔍 SEARCH KEYWORDS (Từ khóa tìm kiếm cho địa danh du lịch)
+  searchKeywords: {
+    type: [String],
+    default: []
+  },
   createdAt: {
     type: Date,
     default: Date.now

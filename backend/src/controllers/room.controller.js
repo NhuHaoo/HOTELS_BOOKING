@@ -144,36 +144,51 @@ exports.getRooms = async (req, res) => {
     }
 
     // ================== SEARCH THEO TỪ KHÓA ==================
-    if (search) {
-      const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const fuzzyRegex = new RegExp(escaped, 'i');
+    let searchHotelIds = null;
+    if (search && !isHotelMode) {
+      const searchTerm = search.trim();
+      
+      // Helper: Remove Vietnamese tones để tìm không dấu
+      const removeVietnameseTones = (str) => {
+        if (!str) return '';
+        return str
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/đ/g, 'd')
+          .replace(/Đ/g, 'D')
+          .toLowerCase();
+      };
+      
+      const searchTermNoTones = removeVietnameseTones(searchTerm);
 
-      if (isHotelMode) {
-        // Đang xem trong 1 khách sạn → chỉ search trong các phòng của KS đó
-        query.$or = [
-          { name: fuzzyRegex },
-          { description: fuzzyRegex }
-        ];
-      } else {
-        // Search tổng quát: tìm KS theo tên/thành phố, rồi map ra room
-        const hotels = await Hotel.find({
-          $or: [
-            { name: fuzzyRegex },
-            { city: fuzzyRegex },
-            { address: fuzzyRegex },
-            { description: fuzzyRegex }
-          ],
-          isActive: true
-        }).select('_id');
+      // Tìm Hotel TRƯỚC theo name/city/address/searchKeywords (có dấu và không dấu)
+      const matchedHotels = await Hotel.find({
+        $or: [
+          { name: { $regex: searchTerm, $options: 'i' } },
+          { city: { $regex: searchTerm, $options: 'i' } },
+          { address: { $regex: searchTerm, $options: 'i' } },
+          { searchKeywords: { $regex: searchTerm, $options: 'i' } },
+          // Tìm không dấu
+          { name: { $regex: searchTermNoTones, $options: 'i' } },
+          { city: { $regex: searchTermNoTones, $options: 'i' } },
+          { address: { $regex: searchTermNoTones, $options: 'i' } },
+          { searchKeywords: { $regex: searchTermNoTones, $options: 'i' } }
+        ],
+        isActive: true
+      }).select('_id');
 
-        const hotelIds = hotels.map((h) => h._id);
-
-        query.$or = [
-          { name: fuzzyRegex },
-          { description: fuzzyRegex },
-          { hotelId: { $in: hotelIds } }
-        ];
-      }
+      searchHotelIds = matchedHotels.map((h) => h._id.toString());
+      
+      // Debug logging
+      console.log(`[SEARCH] Term: "${searchTerm}" (no tones: "${searchTermNoTones}")`);
+      console.log(`[SEARCH] Found ${searchHotelIds.length} hotels`);
+    } else if (search && isHotelMode) {
+      // Đang xem trong 1 khách sạn → chỉ search trong các phòng của KS đó
+      const searchTerm = search.trim();
+      query.$or = [
+        { name: { $regex: searchTerm, $options: 'i' } },
+        { description: { $regex: searchTerm, $options: 'i' } }
+      ];
     }
     // ================== HẾT PHẦN SEARCH ==================
 
@@ -189,7 +204,6 @@ exports.getRooms = async (req, res) => {
       }).select('_id');
 
       cityHotelIds = hotels.map((h) => h._id.toString());
-      query.hotelId = { $in: cityHotelIds };
     }
 
     // Filter by location (cũng bỏ qua nếu đang xem 1 KS cụ thể)
@@ -214,15 +228,25 @@ exports.getRooms = async (req, res) => {
         }).select('_id');
 
         nearbyHotelIds = nearbyHotels.map((h) => h._id.toString());
+      }
+    }
 
-        if (cityHotelIds) {
-          const intersectIds = cityHotelIds.filter((id) =>
-            nearbyHotelIds.includes(id)
-          );
-          query.hotelId = { $in: intersectIds };
-        } else {
-          query.hotelId = { $in: nearbyHotelIds };
+    // Kết hợp tất cả các filter hotelIds (intersect)
+    if (!isHotelMode) {
+      const allHotelIdArrays = [searchHotelIds, cityHotelIds, nearbyHotelIds].filter(Boolean);
+      
+      if (allHotelIdArrays.length > 0) {
+        // Intersect tất cả các mảng hotelIds
+        let finalHotelIds = allHotelIdArrays[0];
+        for (let i = 1; i < allHotelIdArrays.length; i++) {
+          finalHotelIds = finalHotelIds.filter(id => allHotelIdArrays[i].includes(id));
         }
+        
+        // Nếu kết quả intersect rỗng → không có room nào
+        query.hotelId = { $in: finalHotelIds };
+      } else if (searchHotelIds !== null) {
+        // Chỉ có search filter (có thể là mảng rỗng)
+        query.hotelId = { $in: searchHotelIds };
       }
     }
 

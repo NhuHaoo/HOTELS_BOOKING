@@ -278,9 +278,9 @@ const HotelRooms = () => {
                   </span>
                 )}
 
-                {hotel.starRating && (
+                {hotel.starRating && Number.isInteger(hotel.starRating) && hotel.starRating > 0 && hotel.starRating <= 5 && (
                   <div className="flex items-center gap-1">
-                    {[...Array(hotel.starRating)].map((_, i) => (
+                    {[...Array(Math.min(Math.max(1, hotel.starRating), 5))].map((_, i) => (
                       <FaStar key={i} className="text-yellow-400 text-sm" />
                     ))}
                   </div>

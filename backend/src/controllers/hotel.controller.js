@@ -73,17 +73,16 @@ exports.getHotels = async (req, res) => {
     const hasStatusOr = query.$or && Array.isArray(query.$or);
     
     if (search && search.trim()) {
-      const searchRegex = new RegExp(search.trim(), 'i');
+      const searchTerm = search.trim();
       
       if (hasCityFilter) {
         // If both search and city exist:
-        // Search in name, address, description, introduction (NOT city, because city is filtered separately)
+        // Search in name, address, searchKeywords (NOT city, because city is filtered separately)
         // AND city must match city filter
         const searchOr = [
-          { name: searchRegex },
-          { address: searchRegex },
-          { description: searchRegex },
-          { introduction: searchRegex }
+          { name: { $regex: searchTerm, $options: 'i' } },
+          { address: { $regex: searchTerm, $options: 'i' } },
+          { searchKeywords: { $regex: searchTerm, $options: 'i' } }
         ];
         
         // If we have status $or, combine with $and
@@ -96,13 +95,12 @@ exports.getHotels = async (req, res) => {
         }
         query.city = cityRegex;
       } else {
-        // If only search (no city filter), search in all fields including city
+        // If only search (no city filter), search in name, city, address, searchKeywords
         const searchOr = [
-          { name: searchRegex },
-          { city: searchRegex },
-          { address: searchRegex },
-          { description: searchRegex },
-          { introduction: searchRegex }
+          { name: { $regex: searchTerm, $options: 'i' } },
+          { city: { $regex: searchTerm, $options: 'i' } },
+          { address: { $regex: searchTerm, $options: 'i' } },
+          { searchKeywords: { $regex: searchTerm, $options: 'i' } }
         ];
         
         // If we have status $or, combine with $and
