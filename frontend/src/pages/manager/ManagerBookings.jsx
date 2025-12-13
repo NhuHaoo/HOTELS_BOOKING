@@ -591,7 +591,7 @@ const ManagerBookings = () => {
               </button>
             </div>
 
-            <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+            <div className="p-6 space-y-6 overflow-y-auto no-scrollbar max-h-[calc(90vh-80px)]">
               {/* Status Badges */}
               <div className="flex flex-wrap gap-3">
                 <span

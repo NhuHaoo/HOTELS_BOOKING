@@ -21,7 +21,7 @@ const RecentBookingsTable = ({ bookings = [] }) => {
 
   return (
     <div className="w-full">
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto no-scrollbar">
         <table className="w-full text-xs" style={{ tableLayout: 'fixed' }}>
           <colgroup>
             <col style={{ width: '7%' }} />

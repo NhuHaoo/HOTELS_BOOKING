@@ -118,7 +118,7 @@ const PromoCodeBox = ({ totalAmount, onChange }) => {
           <p className="text-xs text-gray-500 mb-2">
             Mã khuyến mãi đang áp dụng:
           </p>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
+          <div className="space-y-2 max-h-48 overflow-y-auto no-scrollbar">
             {activeCoupons.map((coupon) => (
               <div
                 key={coupon._id || coupon.code}

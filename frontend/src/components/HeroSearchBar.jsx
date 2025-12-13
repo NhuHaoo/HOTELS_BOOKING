@@ -356,7 +356,7 @@ const HeroSearchBar = () => {
                   </div>
 
                   {/* Content */}
-                  <div className="max-h-96 overflow-y-auto">
+                  <div className="max-h-96 overflow-y-auto no-scrollbar">
                     {searchData.search && searchData.search.length >= 2 ? (
                       // List view cho search results
                       <div className="py-2">

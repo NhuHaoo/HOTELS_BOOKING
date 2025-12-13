@@ -594,7 +594,7 @@ const SearchResult = () => {
                 {/* Amenities */}
                 <div>
                   <h3 className="font-semibold text-gray-700 mb-3">Tiện nghi</h3>
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-2 no-scrollbar">
                     {AMENITIES.slice(0, 8).map((amenity) => (
                       <label
                         key={amenity.value}

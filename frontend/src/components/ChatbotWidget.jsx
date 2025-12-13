@@ -283,7 +283,7 @@ const ChatbotWidget = () => {
           </div>
 
           {/* Messages */}
-          <div className="h-96 overflow-y-auto p-4 space-y-4">
+          <div className="h-96 overflow-y-auto no-scrollbar p-4 space-y-4">
             {messages.map((message, index) => (
               <div
                 key={index}

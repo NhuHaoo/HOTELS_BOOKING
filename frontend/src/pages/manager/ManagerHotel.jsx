@@ -496,7 +496,7 @@ const ManagerHotel = () => {
       {/* Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+          <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl">
             <div className="p-6 border-b sticky top-0 bg-gradient-to-r from-blue-50 to-indigo-50 z-10">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-gray-900">Chỉnh sửa thông tin khách sạn</h2>

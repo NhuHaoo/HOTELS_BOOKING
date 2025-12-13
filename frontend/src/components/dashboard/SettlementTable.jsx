@@ -20,7 +20,7 @@ const SettlementTable = ({ settlements = [] }) => {
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto no-scrollbar">
       <table className="w-full text-xs table-auto">
         <thead className="bg-gray-50">
           <tr className="border-b border-gray-200">

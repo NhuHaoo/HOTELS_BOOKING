@@ -620,7 +620,7 @@ export default function Promotions() {
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+            <div className="p-6 max-h-[calc(100vh-200px)] overflow-y-auto no-scrollbar">
               {errorMsg && (
                 <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 px-4 py-3 rounded-xl">
                   {errorMsg}
@@ -815,7 +815,7 @@ export default function Promotions() {
                         Lỗi khi tải danh sách khách sạn. Vui lòng thử lại.
                       </div>
                     ) : (
-                      <div className="w-full border-2 border-gray-200 rounded-xl p-4 max-h-60 overflow-y-auto bg-gray-50">
+                      <div className="w-full border-2 border-gray-200 rounded-xl p-4 max-h-60 overflow-y-auto no-scrollbar bg-gray-50">
                         {hotels.length > 0 ? (
                           <div className="space-y-2">
                             {hotels.map((hotel) => {

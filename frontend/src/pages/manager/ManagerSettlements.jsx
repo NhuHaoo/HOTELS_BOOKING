@@ -175,7 +175,7 @@ const ManagerSettlements = () => {
 
       {/* Settlements Table */}
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto no-scrollbar">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
