@@ -110,7 +110,7 @@ exports.getHotels = async (req, res) => {
           // Keep existing $or from status filter
         } else {
           query.$or = searchOr;
-    }
+        }
       }
     } else if (hasCityFilter) {
       // If only city filter (no search), use direct query

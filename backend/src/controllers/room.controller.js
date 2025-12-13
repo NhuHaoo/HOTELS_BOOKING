@@ -163,7 +163,7 @@ exports.getRooms = async (req, res) => {
 
       // Tìm Hotel TRƯỚC theo name/city/address/searchKeywords (có dấu và không dấu)
       const matchedHotels = await Hotel.find({
-        $or: [
+          $or: [
           { name: { $regex: searchTerm, $options: 'i' } },
           { city: { $regex: searchTerm, $options: 'i' } },
           { address: { $regex: searchTerm, $options: 'i' } },
@@ -173,22 +173,22 @@ exports.getRooms = async (req, res) => {
           { city: { $regex: searchTermNoTones, $options: 'i' } },
           { address: { $regex: searchTermNoTones, $options: 'i' } },
           { searchKeywords: { $regex: searchTermNoTones, $options: 'i' } }
-        ],
-        isActive: true
-      }).select('_id');
+          ],
+          isActive: true
+        }).select('_id');
 
       searchHotelIds = matchedHotels.map((h) => h._id.toString());
-      
+
       // Debug logging
       console.log(`[SEARCH] Term: "${searchTerm}" (no tones: "${searchTermNoTones}")`);
       console.log(`[SEARCH] Found ${searchHotelIds.length} hotels`);
     } else if (search && isHotelMode) {
       // Đang xem trong 1 khách sạn → chỉ search trong các phòng của KS đó
       const searchTerm = search.trim();
-      query.$or = [
+        query.$or = [
         { name: { $regex: searchTerm, $options: 'i' } },
         { description: { $regex: searchTerm, $options: 'i' } }
-      ];
+        ];
     }
     // ================== HẾT PHẦN SEARCH ==================
 
