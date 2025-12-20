@@ -314,32 +314,49 @@ const RoomDetail = () => {
 
               {/* Room Details */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t">
-                {room.maxAdults ? (
+                {(() => {
+                  const maxAdults = room.maxAdults || 0;
+                  const maxChildren = room.maxChildren || 0;
+                  const totalGuests = maxAdults + maxChildren || room.maxGuests || 0;
+                  
+                  if (maxAdults > 0 || maxChildren > 0) {
+                    return (
                   <>
+                        <div className="flex flex-col items-center text-center">
+                          <FaUsers className="text-primary text-2xl mb-2" />
+                          <span className="text-sm text-gray-600">Tối đa</span>
+                          <span className="font-semibold">
+                            {totalGuests} khách
+                          </span>
+                        </div>
                     <div className="flex flex-col items-center text-center">
                       <FaUser className="text-primary text-2xl mb-2" />
                       <span className="text-sm text-gray-600">Người lớn</span>
                       <span className="font-semibold">
-                        {room.maxAdults} người
+                            {maxAdults} người
                       </span>
                     </div>
                     <div className="flex flex-col items-center text-center">
                       <FaChild className="text-primary text-2xl mb-2" />
                       <span className="text-sm text-gray-600">Trẻ em</span>
                       <span className="font-semibold">
-                        {room.maxChildren || 0} trẻ
+                            {maxChildren} trẻ
                       </span>
                     </div>
                   </>
-                ) : (
+                    );
+                  } else {
+                    return (
                   <div className="flex flex-col items-center text-center">
                     <FaUsers className="text-primary text-2xl mb-2" />
-                    <span className="text-sm text-gray-600">Số khách</span>
+                        <span className="text-sm text-gray-600">Tối đa</span>
                     <span className="font-semibold">
-                      {room.maxGuests} người
+                          {totalGuests} khách
                     </span>
                   </div>
-                )}
+                    );
+                  }
+                })()}
                 <div className="flex flex-col items-center text-center">
                   <FaBed className="text-primary text-2xl mb-2" />
                   <span className="text-sm text-gray-600">Giường</span>

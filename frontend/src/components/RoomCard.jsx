@@ -56,10 +56,8 @@ const RoomCard = ({
       ? room.maxChildren
       : 0;
 
-  const totalGuests =
-    typeof room.maxGuests === 'number'
-      ? room.maxGuests
-      : maxAdults + maxChildren;
+  // ✅ Tính tổng khách = người lớn + trẻ em
+  const totalGuests = maxAdults + maxChildren;
 
   // Check if room is favorited on mount
   useEffect(() => {
@@ -238,15 +236,17 @@ const RoomCard = ({
 
         {/* Room Info: Sức chứa + Diện tích */}
         <div className="flex items-center gap-2 text-[10px] text-gray-600 mb-2">
-          {totalGuests && (
+          {totalGuests > 0 && (
             <span>
-              Tối đa {maxAdults} người lớn
-              {maxChildren > 0 && `, ${maxChildren} trẻ em`}
+              Tối đa {totalGuests} khách
+              {(maxAdults > 0 || maxChildren > 0) && (
+                <span className="text-gray-500">
+                  {' '}({maxAdults} người lớn{maxChildren > 0 ? `, ${maxChildren} trẻ em` : ''})
+                </span>
+              )}
             </span>
           )}
-          {totalGuests && room.size && <span>•</span>}
-          {room.size && <span>Tổng {totalGuests} khách</span>}
-          {room.size && <span>•</span>}
+          {totalGuests > 0 && room.size && <span>•</span>}
           {room.size && <span>{room.size}m²</span>}
         </div>
 

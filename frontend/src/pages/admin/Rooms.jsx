@@ -362,7 +362,12 @@ const Rooms = () => {
                     </td>
                     <td className="px-2 py-3">
                       <span className="text-xs truncate">
-                        Tối đa {room.maxAdults + (room.maxChildren || 0)} khách
+                        {(() => {
+                          const maxAdults = room.maxAdults || 0;
+                          const maxChildren = room.maxChildren || 0;
+                          const totalGuests = maxAdults + maxChildren || room.maxGuests || 0;
+                          return `Tối đa ${totalGuests} khách`;
+                        })()}
                       </span>
                     </td>
                     <td className="px-2 py-3">

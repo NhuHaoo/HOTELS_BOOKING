@@ -235,6 +235,36 @@ const HotelRooms = () => {
     }
   };
 
+  // Lấy ngày hôm nay để làm min date
+  const today = new Date().toISOString().split('T')[0];
+  
+  // Tính min date cho checkOut (phải sau checkIn ít nhất 1 ngày)
+  const getMinCheckOutDate = () => {
+    if (filterCheckIn) {
+      const checkInDate = new Date(filterCheckIn);
+      checkInDate.setDate(checkInDate.getDate() + 1);
+      return checkInDate.toISOString().split('T')[0];
+    }
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split('T')[0];
+  };
+
+  // Xử lý khi checkIn thay đổi
+  const handleCheckInChange = (date) => {
+    setFilterCheckIn(date);
+    // Nếu checkOut <= checkIn, tự động set checkOut = checkIn + 1 ngày
+    if (date && filterCheckOut) {
+      const checkInDate = new Date(date);
+      const checkOutDate = new Date(filterCheckOut);
+      if (checkOutDate <= checkInDate) {
+        const nextDay = new Date(checkInDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        setFilterCheckOut(nextDay.toISOString().split('T')[0]);
+      }
+    }
+  };
+
   if ((hotelLoading && !hotelFromState) || roomsLoading) {
     return <Loading />;
   }
@@ -309,7 +339,7 @@ const HotelRooms = () => {
                     </span>
                   </div>
                 )}
-              </div>
+            </div>
               <div className="flex items-center gap-3 flex-shrink-0">
                 <button
                   onClick={handleFavoriteClick}
@@ -330,8 +360,8 @@ const HotelRooms = () => {
                 </button>
               </div>
             </div>
-          </div>
-        )}
+              </div>
+            )}
 
         {/* ========== GALLERY ẢNH KHÁCH SẠN ========== */}
         <div className="space-y-2">
@@ -370,26 +400,26 @@ const HotelRooms = () => {
           {/* Thumbnail Gallery */}
           {hotelImages.length > 1 && (
             <div className="grid grid-cols-5 gap-2">
-              {(hotelImages.length ? hotelImages : [mainImage])
+            {(hotelImages.length ? hotelImages : [mainImage])
                 .slice(0, 5)
-                .map((img, index) => (
-                  <button
-                    type="button"
-                    key={index}
-                    onClick={() => setSelectedImage(index)}
+              .map((img, index) => (
+                <button
+                  type="button"
+                  key={index}
+                  onClick={() => setSelectedImage(index)}
                     className={`h-20 md:h-24 rounded-lg overflow-hidden cursor-pointer border-2 transition-all duration-200 ${
-                      selectedImage === index
+                    selectedImage === index
                         ? "border-primary ring-2 ring-primary"
-                        : "border-transparent hover:border-gray-300"
-                    }`}
-                  >
-                    <img
-                      src={img}
-                      alt={`Hotel ${index + 1}`}
-                      className="w-full h-full object-cover hover:scale-110 transition-transform duration-200"
-                    />
-                  </button>
-                ))}
+                      : "border-transparent hover:border-gray-300"
+                  }`}
+                >
+                  <img
+                    src={img}
+                    alt={`Hotel ${index + 1}`}
+                    className="w-full h-full object-cover hover:scale-110 transition-transform duration-200"
+                  />
+                </button>
+              ))}
               {hotelImages.length > 5 && (
                 <button
                   type="button"
@@ -410,7 +440,8 @@ const HotelRooms = () => {
               <input
                 type="date"
                 value={filterCheckIn}
-                onChange={(e) => setFilterCheckIn(e.target.value)}
+                min={today}
+                onChange={(e) => handleCheckInChange(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
@@ -419,12 +450,13 @@ const HotelRooms = () => {
               <input
                 type="date"
                 value={filterCheckOut}
+                min={getMinCheckOutDate()}
                 onChange={(e) => setFilterCheckOut(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-600 mb-1">Số khách</label>
+              <label className="block text-xs text-gray-600 mb-1">Người lớn</label>
               <input
                 type="number"
                 min="1"
@@ -502,18 +534,28 @@ const HotelRooms = () => {
                               <span className="flex items-center gap-1">
                                 <FaBed className="text-primary" />
                                 Diện tích {room.size}m²
-                              </span>
-                            )}
+                  </span>
+                )}
                             {room.bedType && (
                               <span>• {room.bedType}</span>
                             )}
-                            {(room.maxAdults || room.maxGuests) && (
-                              <span className="flex items-center gap-1">
-                                <FaUsers className="text-primary" />
-                                Tối đa {room.maxAdults || room.maxGuests} khách
-                              </span>
-                            )}
-                          </div>
+                            {(() => {
+                              const maxAdults = room.maxAdults || 0;
+                              const maxChildren = room.maxChildren || 0;
+                              const totalGuests = maxAdults + maxChildren || room.maxGuests || 0;
+                              return totalGuests > 0 ? (
+                                <span className="flex items-center gap-1">
+                                  <FaUsers className="text-primary" />
+                                  Tối đa {totalGuests} khách
+                                  {(maxAdults > 0 || maxChildren > 0) && (
+                                    <span className="text-gray-500 text-xs">
+                                      {' '}({maxAdults} NL{maxChildren > 0 ? `, ${maxChildren} TE` : ''})
+                                    </span>
+                                  )}
+                                </span>
+                              ) : null;
+                            })()}
+              </div>
 
                           {/* Tiện nghi */}
                           {room.amenities && room.amenities.length > 0 && (
@@ -529,10 +571,10 @@ const HotelRooms = () => {
                               {room.amenities.length > 6 && (
                                 <span className="text-xs text-gray-500 px-2 py-1">
                                   +{room.amenities.length - 6} tiện nghi
-                                </span>
+                  </span>
                               )}
-                            </div>
-                          )}
+                </div>
+              )}
 
                           {/* Link xem chi tiết */}
                           <button
@@ -565,7 +607,7 @@ const HotelRooms = () => {
                           </button>
                         </div>
                       </div>
-                    </div>
+                  </div>
                   ))}
                 </div>
               )}
@@ -575,15 +617,15 @@ const HotelRooms = () => {
             {(hotel?.introduction || hotel?.description) && (
               <div className="bg-white rounded-xl shadow-md p-6">
                 <h3 className="font-semibold text-xl mb-4">Tổng quan</h3>
-                {hotel.introduction && (
+            {hotel.introduction && (
                   <p className="text-sm text-gray-700 leading-relaxed mb-3">
-                    {hotel.introduction}
-                  </p>
-                )}
-                {hotel.description && (
+                  {hotel.introduction}
+                </p>
+            )}
+            {hotel.description && (
                   <p className="text-sm text-gray-700 leading-relaxed">
-                    {hotel.description}
-                  </p>
+                  {hotel.description}
+                </p>
                 )}
               </div>
             )}
@@ -688,8 +730,8 @@ const HotelRooms = () => {
                         ))}
                       </div>
                     </div>
-                  </div>
-                )}
+          </div>
+        )}
 
                 <div className="space-y-4">
                   {reviews.length > 0 ? (
@@ -717,7 +759,7 @@ const HotelRooms = () => {
           <div className="col-span-12 lg:col-span-4">
             <div className="bg-white rounded-2xl shadow-xl p-4 sticky top-24">
               <h3 className="font-semibold text-lg mb-4">Thông tin đặt phòng</h3>
-              
+
               {/* Check-in/Check-out */}
               <div className="space-y-3 mb-4">
                 <div>

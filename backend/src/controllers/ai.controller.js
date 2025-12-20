@@ -3,6 +3,7 @@ const Booking = require('../models/Booking');
 const Review = require('../models/Review');
 const Favorite = require('../models/Favorite');
 const Hotel = require('../models/Hotel');
+const ChatMessage = require('../models/ChatMessage');
 const config = require('../config/env');
 
 // Helper function to execute room search
@@ -559,6 +560,9 @@ exports.getTrendingDestinations = async (req, res) => {
   try {
     const { limit = 5 } = req.query;
 
+    const Hotel = require('../models/Hotel');
+    const Room = require('../models/Room');
+
     // Get most booked cities
     const trendingCities = await Booking.aggregate([
       {
@@ -593,8 +597,6 @@ exports.getTrendingDestinations = async (req, res) => {
     let destinations = trendingCities;
     
     if (destinations.length === 0) {
-      const Hotel = require('../models/Hotel');
-      
       const citiesWithHotels = await Hotel.aggregate([
         {
           $group: {
@@ -615,10 +617,48 @@ exports.getTrendingDestinations = async (req, res) => {
       }));
     }
 
+    // Enrich destinations with hotel data (image, totalRooms, avgRating)
+    const enrichedDestinations = await Promise.all(
+      destinations.map(async (dest) => {
+        // Get top hotel in this city (by rating)
+        const topHotel = await Hotel.findOne({ city: dest._id })
+          .sort({ rating: -1 })
+          .select('images thumbnail rating _id')
+          .lean();
+
+        // Get all hotel IDs in this city
+        const cityHotelIds = await Hotel.find({ city: dest._id }).select('_id').lean();
+        const hotelIds = cityHotelIds.map(h => h._id);
+
+        // Count total rooms in this city
+        const totalRooms = hotelIds.length > 0
+          ? await Room.countDocuments({
+              hotelId: { $in: hotelIds },
+              isActive: true
+            })
+          : 0;
+
+        // Calculate average rating
+        const cityHotels = await Hotel.find({ city: dest._id }).select('rating').lean();
+        const avgRating = cityHotels.length > 0
+          ? cityHotels.reduce((sum, h) => sum + (h.rating || 0), 0) / cityHotels.length
+          : 0;
+
+        return {
+          _id: dest._id,
+          bookings: dest.bookings || 0,
+          averagePrice: dest.averagePrice || 1500000,
+          totalRooms: totalRooms,
+          avgRating: avgRating,
+          image: topHotel?.images?.[0] || topHotel?.thumbnail || null
+        };
+      })
+    );
+
     res.status(200).json({
       success: true,
-      count: destinations.length,
-      data: destinations
+      count: enrichedDestinations.length,
+      data: enrichedDestinations
     });
   } catch (error) {
     console.error('Get trending destinations error:', error);
@@ -841,6 +881,109 @@ Số khách tối đa: ${preferences.maxGuests} người
     });
   } catch (error) {
     console.error('Get personalized recommendations error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Get chat messages for current user
+// @route   GET /api/ai/chat/messages
+// @access  Private
+exports.getChatMessages = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    let chatMessage = await ChatMessage.findOne({ userId });
+
+    // If no chat history exists, return default welcome message
+    if (!chatMessage || !chatMessage.messages || chatMessage.messages.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [
+          {
+            type: 'bot',
+            text: 'Xin chào! 👋 Tôi là trợ lý ảo của hệ thống đặt phòng khách sạn. Tôi có thể giúp bạn:\n\n• Tìm kiếm và đặt phòng\n• Tra cứu giá phòng\n• Hỗ trợ thanh toán\n• Giải đáp chính sách\n\nBạn cần hỗ trợ gì ạ? 😊',
+            timestamp: new Date(),
+          }
+        ]
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: chatMessage.messages
+    });
+  } catch (error) {
+    console.error('Get chat messages error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Save chat messages for current user
+// @route   POST /api/ai/chat/messages
+// @access  Private
+exports.saveChatMessages = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { messages } = req.body;
+
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Messages must be an array'
+      });
+    }
+
+    // Find or create chat message document
+    let chatMessage = await ChatMessage.findOne({ userId });
+
+    if (chatMessage) {
+      // Update existing messages
+      chatMessage.messages = messages;
+      chatMessage.updatedAt = new Date();
+      await chatMessage.save();
+    } else {
+      // Create new chat message document
+      chatMessage = await ChatMessage.create({
+        userId,
+        messages
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Messages saved successfully',
+      data: chatMessage.messages
+    });
+  } catch (error) {
+    console.error('Save chat messages error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
+// @desc    Clear chat messages for current user
+// @route   DELETE /api/ai/chat/messages
+// @access  Private
+exports.clearChatMessages = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    await ChatMessage.findOneAndDelete({ userId });
+
+    res.status(200).json({
+      success: true,
+      message: 'Chat messages cleared successfully'
+    });
+  } catch (error) {
+    console.error('Clear chat messages error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'

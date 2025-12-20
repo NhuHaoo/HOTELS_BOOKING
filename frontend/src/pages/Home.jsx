@@ -180,9 +180,13 @@ const Home = () => {
                 >
                   <div className="relative h-64 md:h-72">
                     <img
-                      src={`https://source.unsplash.com/800x600/?${destination._id},vietnam,hotel`}
+                      src={destination.image || `https://source.unsplash.com/800x600/?${destination._id},vietnam,hotel`}
                       alt={destination._id}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      onError={(e) => {
+                        // Fallback nếu ảnh lỗi
+                        e.target.src = `https://source.unsplash.com/800x600/?${destination._id},vietnam,hotel`;
+                      }}
                     />
                     {/* Gradient Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-80"></div>

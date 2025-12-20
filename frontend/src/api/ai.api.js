@@ -25,5 +25,20 @@ export const aiAPI = {
   chat: (message, context = {}) => {
     return axiosClient.post('/ai/chat', { message, context });
   },
+
+  // Get chat messages for current user
+  getChatMessages: () => {
+    return axiosClient.get('/ai/chat/messages');
+  },
+
+  // Save chat messages for current user
+  saveChatMessages: (messages) => {
+    return axiosClient.post('/ai/chat/messages', { messages });
+  },
+
+  // Clear chat messages for current user
+  clearChatMessages: () => {
+    return axiosClient.delete('/ai/chat/messages');
+  },
 };
 
